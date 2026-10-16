@@ -1,11 +1,15 @@
-/* AI Sports Precision Medicine — demo data model
-   Все спортсмены и показатели вымышленные. Значения детерминированы (seed), чтобы демо выглядело одинаково у всех.
-   Показатели считаются прозрачными правилами (личная норма, сон, нагрузка) — это иллюстрация интерфейса, не обученная модель. */
+/* AI Sports Precision Medicine — модель данных демо-кабинета
+   Все спортсмены и измерения вымышленные и детерминированы (seed), чтобы демо выглядело одинаково у всех.
+   Индексы готовности и восстановления (0–100) — прозрачные правила относительно личной нормы.
+   Риск травмы и прогноз самочувствия на завтра считают обученные модели (model.js, models.js). */
 (function (global) {
   'use strict';
 
-  var DAYS = 42;          // история для базовой линии
+  var DAYS = 84;          // 12 недель истории: личные нормы для моделей + графики
   var VISIBLE = 30;       // показываем в графиках
+  var ML = global.ASPML;
+  var RR_HIGH = 1.5;      // риск травмы ≥ 1,5 × среднего уровня — сигнал «требует внимания» (≈ 8% дней с наибольшим риском в обучающих данных)
+  var RR_MID = 1.2;
 
   function mulberry32(a) {
     return function () {
@@ -19,32 +23,33 @@
   function round(v, d) { var p = Math.pow(10, d || 0); return Math.round(v * p) / p; }
   function mean(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : 0; }
   function median(a) { var b = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(b.length / 2); return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+  function nn(v) { return v == null || v !== v ? NaN : v; }
 
-  var POS = { gk: 'Вратарь', df: 'Защитник', fw: 'Нападающий', cf: 'Центральный нападающий' };
+  var POS = { gk: 'Вратарь', df: 'Защитник', mf: 'Полузащитник', fw: 'Нападающий' };
 
   // profile: ok | overload | sleep | hrv | recovery | nodata | lowD
   var ROSTER = [
     ['a01', 'Арман', 'Сейткали', 'gk', 1, 27, 'ok'],
     ['a02', 'Даниил', 'Ким', 'df', 2, 24, 'ok'],
-    ['a03', 'Ерлан', 'Жаксылыков', 'cf', 3, 28, 'overload'],
+    ['a03', 'Ерлан', 'Жаксылыков', 'mf', 3, 28, 'overload'],
     ['a04', 'Тимур', 'Ахметов', 'fw', 4, 23, 'ok'],
     ['a05', 'Алексей', 'Воронцов', 'df', 5, 29, 'ok'],
     ['a06', 'Бауыржан', 'Омаров', 'fw', 6, 22, 'sleep'],
     ['a07', 'Руслан', 'Ибраев', 'fw', 7, 25, 'ok'],
-    ['a08', 'Максим', 'Белов', 'cf', 8, 26, 'hrv'],
+    ['a08', 'Максим', 'Белов', 'mf', 8, 26, 'hrv'],
     ['a09', 'Нуржан', 'Касенов', 'df', 9, 30, 'ok'],
     ['a10', 'Илья', 'Сорокин', 'fw', 10, 21, 'ok'],
     ['a11', 'Айдос', 'Мукашев', 'fw', 11, 24, 'lowD'],
     ['a12', 'Дмитрий', 'Лаптев', 'df', 12, 27, 'ok'],
     ['a13', 'Санжар', 'Утепов', 'gk', 13, 25, 'recovery'],
     ['a14', 'Артём', 'Гриценко', 'fw', 14, 23, 'ok'],
-    ['a15', 'Мирас', 'Тулегенов', 'cf', 15, 26, 'ok'],
+    ['a15', 'Мирас', 'Тулегенов', 'mf', 15, 26, 'ok'],
     ['a16', 'Кирилл', 'Зайцев', 'df', 16, 28, 'hrv'],
     ['a17', 'Ержан', 'Абдиров', 'fw', 17, 22, 'ok'],
     ['a18', 'Павел', 'Мельник', 'fw', 18, 29, 'ok'],
     ['a19', 'Алибек', 'Сарсенов', 'df', 19, 24, 'ok'],
     ['a20', 'Глеб', 'Никитин', 'fw', 20, 20, 'nodata'],
-    ['a21', 'Нурлан', 'Есенов', 'cf', 21, 27, 'ok'],
+    ['a21', 'Нурлан', 'Есенов', 'mf', 21, 27, 'ok'],
     ['a22', 'Егор', 'Литвинов', 'fw', 22, 25, 'recovery'],
     ['a23', 'Олжас', 'Бектуров', 'df', 23, 26, 'ok'],
     ['a24', 'Виктор', 'Шевчук', 'fw', 24, 30, 'ok']
@@ -72,35 +77,106 @@
     d.setDate(d.getDate() - offsetFromToday);
     return d;
   }
+  function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
-  function buildAthlete(row, idx, today) {
+  /* ---------- ряды для моделей ---------- */
+  function seriesOf(days) {
+    var s = { load: [], hi: [], sessions: [], strength: [], exertion: [], recovery: [], srpe: [],
+      fatigue: [], mood: [], readiness: [], sleep_duration: [], sleep_quality: [], soreness: [], stress: [] };
+    days.forEach(function (d) {
+      var w = d.well || {};
+      s.load.push(nn(d.load)); s.srpe.push(nn(d.load)); s.hi.push(nn(d.hi));
+      s.sessions.push(nn(d.sessions)); s.strength.push(nn(d.strength));
+      s.exertion.push(d.rpe == null ? NaN : d.rpe / 10);
+      ['fatigue', 'mood', 'readiness', 'sleep_quality', 'soreness', 'stress'].forEach(function (k) { s[k].push(nn(w[k])); });
+      s.sleep_duration.push(nn(w.sleep_duration != null ? w.sleep_duration : d.sleep));
+      // потребность в восстановлении 0..1 (выше — хуже): из усталости и болезненности чек-ина
+      s.recovery.push(w.fatigue != null && w.soreness != null ? ((5 - w.fatigue) + (5 - w.soreness)) / 8 : NaN);
+    });
+    return s;
+  }
+
+  function applyML(a) {
+    a.series = seriesOf(a.days);
+    if (!ML || !ML.ready) return;
+    var s = a.series;
+    for (var k = 0; k < a.days.length; k++) {
+      var dd = a.days[k];
+      var p = ML.personalNorms(s, k);
+      var x = ML.injuryFeaturesAt(s, k, p);
+      dd.injX = null; dd.inj = null; dd.risk = null; dd.rr = null;
+      if (x[0] === x[0]) { // есть нагрузка за неделю и личная норма
+        var r = ML.predictInjury(x);
+        dd.injX = x; dd.inj = r;
+        dd.risk = Math.max(0.1, round(r.week * 100, 1));
+        dd.rr = r.rr;
+      }
+      dd.fc = null;
+      if (s.readiness[k] === s.readiness[k] && k >= 7) dd.fc = ML.predictReadiness(ML.readinessFeaturesAt(s, k));
+    }
+  }
+
+  /* Пользовательские чек-ины перекрывают демо-значения за соответствующий день */
+  function applyCheckins(a, list) {
+    (list || []).slice().reverse().forEach(function (c) {
+      var d = new Date(c.ts);
+      var k = -1;
+      for (var i = a.days.length - 1; i >= 0; i--) if (sameDay(a.days[i].date, d)) { k = i; break; }
+      if (k < 0) return;
+      var w = a.days[k].well = Object.assign({}, a.days[k].well || {});
+      if (c.mood != null) w.mood = c.mood;
+      if (c.stress != null) w.stress = 6 - c.stress;          // в модели 5 = спокоен
+      if (c.sleepq != null) w.sleep_quality = c.sleepq;
+      if (c.soreness != null) w.soreness = 6 - c.soreness;    // в модели 5 = нет болезненности
+      if (c.fatigue != null) w.fatigue = 6 - c.fatigue;       // в модели 5 = свеж
+      if (c.readiness != null) w.readiness = c.readiness;
+      if (c.sleeph != null) w.sleep_duration = c.sleeph;
+      if (c.rpe != null && c.dur != null && k > 0) {           // вчерашняя тренировка: sRPE = RPE × минуты
+        var y = a.days[k - 1], share = y.load > 0 ? (y.hi || 0) / y.load : 0.06;
+        y.load = Math.round(c.rpe * c.dur);
+        y.hi = Math.round(y.load * share);
+        y.rpe = y.load > 0 ? c.rpe : null;
+        y.sessions = y.load > 0 ? Math.max(1, y.sessions || 0) : 0;
+        y.userLoad = true;
+      }
+      a.days[k].userCheckin = true;
+    });
+  }
+
+  function buildAthlete(row, idx, today, checkins) {
     var rnd = mulberry32(1000 + idx * 7919);
     var id = row[0], prof = row[6], pos = row[3];
     var baseHrv = 58 + rnd() * 34;
     var baseSleep = 7.4 + rnd() * 0.8;
     var baseRhr = 45 + rnd() * 10;
-    var baseLoad = pos === 'gk' ? 360 + rnd() * 80 : 470 + rnd() * 120;
-    var baseThrows = pos === 'gk' ? 0 : 120 + rnd() * 70;
+    var baseLoad = pos === 'gk' ? 380 + rnd() * 80 : 480 + rnd() * 120;   // sRPE, у.е. (RPE × минуты)
+    var baseHi = 0.04 + rnd() * 0.05;                                        // доля высокоинтенсивной работы
+    var baseRpe = 4.8 + rnd() * 1.4;
+    var baseReady = 6.4 + rnd() * 1.3;                                       // самооценка готовности 0–10
+    var n = function (s) { return (rnd() - 0.5) * 2 * s; };
 
     var days = [];
     for (var i = DAYS - 1; i >= 0; i--) {
       var d = dayDate(today, i);
       var cyc = i % 7;            // недельный микроцикл, не зависит от календаря
       var rest = cyc === 3;
-      var n = function (s) { return (rnd() - 0.5) * 2 * s; };
       var hrv = baseHrv * (1 + n(0.08));
       var sleep = baseSleep + n(0.45);
       var rhr = baseRhr + n(2.5);
-      var load = rest ? 40 + rnd() * 40 : baseLoad * (1 + n(0.18)) * (cyc === 4 ? 1.15 : 1);
-      var throws = rest || pos === 'gk' ? 0 : baseThrows * (1 + n(0.2));
+      var load = rest ? 0 : baseLoad * (1 + n(0.18)) * (cyc === 4 ? 1.15 : 1);
+      var hiShare = rest ? 0 : clamp(baseHi * (1 + n(0.5)) * (cyc === 4 ? 1.6 : 1), 0, 0.5);
+      var rpe = rest ? null : clamp(Math.round(baseRpe + n(1.2) + (cyc === 4 ? 1.3 : 0)), 2, 10);
+      var sessions = rest ? 0 : (cyc === 1 || cyc === 5 ? 2 : 1);
+      var strength = !rest && (cyc === 1 || cyc === 5) ? 1 : 0;
       var resp = 14 + n(1.2);
       var temp = n(0.18);
 
-      // profile shaping in the last days (i = days ago)
-      if (prof === 'overload' && i <= 6) { load *= 1.5; throws *= 1.45; if (i <= 3) hrv *= 0.84; }
+      // профиль в последние дни (i = дней назад)
+      if (prof === 'overload' && i <= 6 && !rest) { load *= 1.5; hiShare = clamp(hiShare * 2.2, 0, 0.5); rpe = clamp(rpe + 2, 2, 10); sessions = 2; if (i <= 3) hrv *= 0.84; }
+      if (prof === 'overload' && i <= 6 && rest) { load = baseLoad * 0.7; rpe = clamp(Math.round(baseRpe), 2, 10); sessions = 1; }
       if (prof === 'sleep' && i <= 5) { sleep = 6.4 + rnd() * 0.5; hrv *= 0.93; }
       if (prof === 'hrv' && i <= 2) { hrv *= 0.79; rhr += 4; }
-      if (prof === 'recovery' && i <= 4) { hrv *= 0.88; sleep -= 0.4; rhr += 3; }
+      if (prof === 'recovery' && i <= 4) { hrv *= 0.88; sleep -= 0.4; rhr += 3; if (!rest) rpe = clamp(rpe + 1, 2, 10); }
       if (prof === 'lowD') { sleep -= 0.1; }
 
       var missing = prof === 'nodata' && i <= 9;
@@ -110,25 +186,27 @@
         sleep: missing ? null : round(clamp(sleep, 4.5, 10), 2),
         rhr: missing ? null : round(rhr, 0),
         load: round(load, 0),
-        throws: round(throws, 0),
+        hi: round(load * hiShare, 0),
+        rpe: rpe, sessions: sessions, strength: strength,
         resp: missing ? null : round(resp, 1),
-        temp: missing ? null : round(temp, 1)
+        temp: missing ? null : round(temp, 1),
+        _i: i, _rest: rest
       });
     }
 
-    // derived per day
+    // производные: индексы по правилам + утренний чек-ин (шкалы как в SoccerMon: 1–5, выше = лучше)
     for (var k = 0; k < days.length; k++) {
       var dd = days[k];
       var hist = days.slice(Math.max(0, k - 28), k).filter(function (x) { return x.hrv != null; });
       var base = hist.length >= 7 ? median(hist.map(function (x) { return x.hrv; })) : baseHrv;
       var acute = mean(days.slice(Math.max(0, k - 6), k + 1).map(function (x) { return x.load; }));
       var chronic = mean(days.slice(Math.max(0, k - 27), k + 1).map(function (x) { return x.load; })) || 1;
-      var thrA = mean(days.slice(Math.max(0, k - 6), k + 1).map(function (x) { return x.throws; }));
-      var thrC = mean(days.slice(Math.max(0, k - 27), k + 1).map(function (x) { return x.throws; })) || 1;
+      var hiA = mean(days.slice(Math.max(0, k - 6), k + 1).map(function (x) { return x.hi; }));
+      var hiC = mean(days.slice(Math.max(0, k - 27), k + 1).map(function (x) { return x.hi; })) || 1;
       dd.hrvBase = round(base, 1);
       dd.acwr = round(acute / chronic, 2);
-      dd.throwRatio = pos === 'gk' ? 1 : round(thrA / thrC, 2);
-      if (dd.hrv == null) { dd.recovery = null; dd.readiness = null; dd.risk = null; continue; }
+      dd.hiRatio = round(hiA / hiC, 2);
+      if (dd.hrv == null) { dd.recovery = null; dd.readiness = null; dd.well = null; continue; }
       var hr = dd.hrv / base;
       var sleepScore = clamp((dd.sleep - 5.5) / 2.8, 0, 1);
       var rhrScore = clamp((62 - dd.rhr) / 18, 0, 1);
@@ -138,15 +216,21 @@
       dd.recovery = Math.round(clamp(recovery, 20, 99));
       dd.readiness = Math.round(clamp(readiness, 20, 99));
 
-      var risk = 6 + rnd() * 6;
-      if (hr < 0.85) risk += 18;
-      if (dd.sleep < 7) risk += 9;
-      if (dd.acwr > 1.25) risk += 16;
-      if (dd.throwRatio > 1.25) risk += 10;
-      dd.risk = Math.round(clamp(risk, 3, 85));
+      var prevLoad = k > 0 ? days[k - 1].load : baseLoad;
+      var heavy = prof === 'overload' && dd._i <= 6;
+      var r10 = clamp(Math.round(baseReady + 4 * (hr - 1) + 0.6 * (dd.sleep - baseSleep) - (heavy ? 1.6 : 0) + n(1.0)), 1, 10);
+      var skip = rnd() < 0.05; // иногда спортсмен не заполняет чек-ин
+      dd.well = skip ? null : {
+        readiness: r10,
+        fatigue: clamp(Math.round(3 + 0.5 * (r10 - baseReady) + n(0.7) - (heavy ? 0.8 : 0)), 1, 5),
+        soreness: clamp(Math.round(3 - 1.4 * (prevLoad / baseLoad - 1) + n(0.7) - (heavy ? 0.8 : 0)), 1, 5),
+        sleep_quality: clamp(Math.round(3 + 0.9 * (dd.sleep - baseSleep) + n(0.6)), 1, 5),
+        stress: clamp(Math.round(3.1 + n(0.8)), 1, 5),
+        mood: clamp(Math.round(3.2 + 0.3 * (r10 - baseReady) + n(0.7)), 1, 5)
+      };
     }
 
-    // labs: current panel (~9 days ago) and previous (~55 days ago)
+    // анализы: текущая панель (~9 дней назад) и предыдущая (~55 дней назад)
     function lab(lo, hi, bias) { return lo + (hi - lo) * clamp(bias + (rnd() - 0.5) * 0.25, 0.05, 0.95); }
     var labs = {
       ferritin: round(lab(30, 180, 0.45), 0),
@@ -161,42 +245,48 @@
     if (prof === 'lowD') { labs.vitd = 21; labs.ferritin = 27; }
     if (id === 'a13') { labs.crp = 6.2; }
     var prevLabs = {};
-    Object.keys(labs).forEach(function (k) { prevLabs[k] = round(labs[k] * (0.88 + rnd() * 0.24), LABS.filter(function (l) { return l.key === k; })[0].dec); });
+    Object.keys(labs).forEach(function (k2) { prevLabs[k2] = round(labs[k2] * (0.88 + rnd() * 0.24), LABS.filter(function (l) { return l.key === k2; })[0].dec); });
 
-    return {
+    var a = {
       id: id, first: row[1], last: row[2], name: row[2] + ' ' + row[1], short: row[1] + ' ' + row[2],
       initials: (row[2][0] + row[1][0]).toUpperCase(), pos: pos, posName: POS[pos], num: row[4], age: row[5],
       profile: prof, days: days, labs: labs, prevLabs: prevLabs,
       labDate: dayDate(today, 9), prevLabDate: dayDate(today, 55), custom: false
     };
+    applyCheckins(a, checkins[id]);
+    applyML(a);
+    return a;
   }
 
-  function buildCustom(c, idx, today) {
+  function buildCustom(c, idx, today, checkins) {
     var days = [];
     for (var i = DAYS - 1; i >= 0; i--) {
-      days.push({ date: dayDate(today, i), hrv: null, sleep: null, rhr: null, load: 0, throws: 0, resp: null, temp: null, hrvBase: null, acwr: null, throwRatio: null, recovery: null, readiness: null, risk: null });
+      days.push({ date: dayDate(today, i), hrv: null, sleep: null, rhr: null, load: null, hi: null, rpe: null, sessions: null, strength: null, resp: null, temp: null, hrvBase: null, acwr: null, hiRatio: null, recovery: null, readiness: null, risk: null, well: null });
     }
     var parts = String(c.name).trim().split(/\s+/);
     var initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : (parts[0] ? parts[0].slice(0, 2) : '—');
-    return {
+    var a = {
       id: c.id, first: parts.slice(1).join(' '), last: parts[0] || c.name, name: c.name, short: c.name,
-      initials: initials.toUpperCase(), pos: c.pos, posName: POS[c.pos] || c.pos, num: c.num, age: null,
+      initials: initials.toUpperCase(), pos: c.pos, posName: POS[c.pos] || (c.pos === 'cf' ? POS.mf : c.pos), num: c.num, age: null,
       profile: 'nodata', days: days, labs: null, prevLabs: null, labDate: null, prevLabDate: null, custom: true
     };
+    applyCheckins(a, checkins[c.id]);
+    applyML(a);
+    return a;
   }
 
-  /* Snapshot for a given "as of" offset (0 = today, 1 = yesterday ...) */
+  /* Срез на дату (offset: 0 = сегодня, 1 = вчера …) */
   function snapshot(a, offset) {
     var idx = a.days.length - 1 - offset;
     var d = a.days[idx];
     var prev = a.days[idx - 7] || d;
     var s = {
-      date: d.date, readiness: d.readiness, recovery: d.recovery, risk: d.risk,
-      hrv: d.hrv, hrvBase: d.hrvBase, sleep: d.sleep, rhr: d.rhr, acwr: d.acwr, throwRatio: d.throwRatio,
+      date: d.date, readiness: d.readiness, recovery: d.recovery, risk: d.risk, rr: d.rr, inj: d.inj, injX: d.injX,
+      fc: d.fc, well: d.well, userCheckin: !!d.userCheckin,
+      hrv: d.hrv, hrvBase: d.hrvBase, sleep: d.sleep, rhr: d.rhr, acwr: d.acwr, hiRatio: d.hiRatio,
       load: d.load, resp: d.resp, temp: d.temp,
       prevReadiness: prev.readiness, prevRecovery: prev.recovery
     };
-    // flags (orange flags): rules relative to personal baseline
     var flags = [];
     if (d.hrv == null) {
       s.status = 'nodata';
@@ -206,26 +296,30 @@
       var lowStreak = 0;
       for (var j = idx; j >= 0 && j > idx - 5; j--) { var x = a.days[j]; if (x.hrv != null && x.hrv < 0.85 * x.hrvBase) lowStreak++; else break; }
       s.lowStreak = lowStreak;
+      var rhrMean = mean(a.days.slice(idx - 28, idx).map(function (x) { return x.rhr || 0; }));
       if (d.acwr > 1.25) flags.push({ k: 'load', t: 'Нагрузка +' + Math.round((d.acwr - 1) * 100) + '% (ACWR ' + String(d.acwr).replace('.', ',') + ')' });
-      if (d.throwRatio > 1.25) flags.push({ k: 'throws', t: 'Бросковая нагрузка +' + Math.round((d.throwRatio - 1) * 100) + '%' });
+      if (d.hiRatio > 1.3) flags.push({ k: 'hi', t: 'Интенсивная работа +' + Math.round((d.hiRatio - 1) * 100) + '%' });
       if (hrvPct <= -15) flags.push({ k: 'hrv', t: 'HRV ' + hrvPct + '% к личной норме' + (lowStreak >= 2 ? ' · ' + lowStreak + ' дн. подряд' : '') });
       if (d.sleep < 7) flags.push({ k: 'sleep', t: 'Сон ' + fmtHours(d.sleep) });
-      if (d.rhr > (mean(a.days.slice(idx - 28, idx).map(function (x) { return x.rhr || 0; })) + 4)) flags.push({ k: 'rhr', t: 'Пульс покоя +' + Math.round(d.rhr - mean(a.days.slice(idx - 28, idx).map(function (x) { return x.rhr || 0; }))) + ' уд/мин' });
+      if (d.rhr > rhrMean + 4) flags.push({ k: 'rhr', t: 'Пульс покоя +' + Math.round(d.rhr - rhrMean) + ' уд/мин' });
+      if (d.rr != null && d.rr >= RR_HIGH) flags.push({ k: 'model', t: 'Модель: риск ×' + String(round(d.rr, 1)).replace('.', ',') + ' к среднему' });
       if (a.labs && a.labs.ck > 308) flags.push({ k: 'ck', t: 'КК ' + a.labs.ck + ' Ед/л' });
       if (a.labs && a.labs.vitd < 30) flags.push({ k: 'vitd', t: 'Витамин D ' + a.labs.vitd + ' нг/мл' });
       if (a.labs && a.labs.crp > 5) flags.push({ k: 'crp', t: 'СРБ ' + String(a.labs.crp).replace('.', ',') + ' мг/л' });
 
       var kinds = flags.map(function (f) { return f.k; });
-      if ((kinds.indexOf('load') > -1 || kinds.indexOf('throws') > -1) && kinds.indexOf('hrv') > -1) s.signal = 'Риск перегрузки плечевого сустава';
-      else if (kinds.indexOf('sleep') > -1 && d.recovery < 70) s.signal = 'Недостаточное восстановление';
-      else if (kinds.indexOf('hrv') > -1) s.signal = 'Снижение вариабельности пульса';
-      else if (kinds.indexOf('crp') > -1) s.signal = 'Признаки воспаления — нужна оценка врача';
-      else if (kinds.indexOf('vitd') > -1) s.signal = 'Дефицит витамина D и низкий ферритин';
+      function has(k) { return kinds.indexOf(k) > -1; }
+      if ((has('load') || has('hi')) && (has('hrv') || has('model'))) s.signal = 'Риск перегрузки';
+      else if (has('sleep') && d.recovery < 70) s.signal = 'Недостаточное восстановление';
+      else if (has('hrv')) s.signal = 'Снижение вариабельности пульса';
+      else if (has('model')) s.signal = 'Повышенный риск травмы по модели';
+      else if (has('crp')) s.signal = 'Признаки воспаления — нужна оценка врача';
+      else if (has('vitd')) s.signal = 'Дефицит витамина D и низкий ферритин';
       else s.signal = null;
 
-      var physio = flags.filter(function (f) { return ['load', 'throws', 'hrv', 'sleep', 'rhr'].indexOf(f.k) > -1; }).length;
-      if (d.risk >= 40 || d.readiness < 55 || physio >= 2) s.status = 'attention';
-      else if (d.recovery < 64 || kinds.indexOf('crp') > -1) s.status = 'recovery';
+      var physio = flags.filter(function (f) { return ['load', 'hi', 'hrv', 'sleep', 'rhr'].indexOf(f.k) > -1; }).length;
+      if ((d.rr != null && d.rr >= RR_HIGH) || d.readiness < 55 || physio >= 2) s.status = 'attention';
+      else if (d.recovery < 64 || has('crp')) s.status = 'recovery';
       else s.status = 'ready';
     }
     s.flags = flags;
@@ -239,30 +333,24 @@
     return hh + ' ч ' + (mm < 10 ? '0' : '') + mm + ' мин';
   }
 
+  /* Объяснение прогноза риска: вклад признаков (по пути в деревьях), сортировка по силе влияния */
   function factorBreakdown(a, offset) {
-    var s = snapshot(a, offset);
-    if (s.status === 'nodata') return [];
-    var f = [];
-    f.push({ name: 'Отклонение HRV от личной нормы', v: clamp(-(s.hrvPct || 0) * 1.4, 0, 40) });
-    f.push({ name: 'Острая/хроническая нагрузка', v: clamp(((s.acwr || 1) - 1) * 90, 0, 40) });
-    f.push({ name: 'Бросковая нагрузка', v: clamp(((s.throwRatio || 1) - 1) * 70, 0, 30) });
-    f.push({ name: 'Недосып', v: clamp((7.5 - (s.sleep || 8)) * 14, 0, 30) });
-    f.push({ name: 'Пульс покоя', v: clamp(((s.rhr || 50) - 52) * 1.6, 0, 18) });
-    var total = f.reduce(function (t, x) { return t + x.v; }, 0) || 1;
-    return f.map(function (x) { return { name: x.name, v: Math.round(x.v), share: Math.round((x.v / total) * 100) }; })
-      .sort(function (p, q) { return q.v - p.v; });
+    var d = a.days[a.days.length - 1 - offset];
+    if (!d || !d.inj || !ML) return [];
+    return ML.describeInjury(d.injX, d.inj.contrib).sort(function (p, q) { return Math.abs(q.c) - Math.abs(p.c); });
   }
 
   function build(options) {
     options = options || {};
     var today = options.today || new Date();
-    var athletes = ROSTER.map(function (r, i) { return buildAthlete(r, i, today); });
-    (options.custom || []).forEach(function (c, i) { athletes.push(buildCustom(c, i, today)); });
+    var checkins = options.checkins || {};
+    var athletes = ROSTER.map(function (r, i) { return buildAthlete(r, i, today, checkins); });
+    (options.custom || []).forEach(function (c, i) { athletes.push(buildCustom(c, i, today, checkins)); });
     return { today: today, athletes: athletes, DAYS: DAYS, VISIBLE: VISIBLE, LABS: LABS, WEAR: WEAR, POS: POS };
   }
 
   global.ASPData = {
-    build: build, snapshot: snapshot, factorBreakdown: factorBreakdown,
+    build: build, snapshot: snapshot, RR_HIGH: RR_HIGH, RR_MID: RR_MID, factorBreakdown: factorBreakdown, seriesOf: seriesOf,
     fmtHours: fmtHours, mean: mean, median: median, clamp: clamp, round: round, POS: POS
   };
 })(window);

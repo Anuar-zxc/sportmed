@@ -70,6 +70,8 @@
 <symbol id="i-cookie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5A9 9 0 1 1 11.5 3a3 3 0 0 0 4 3.5 3 3 0 0 0 5.5 6Z"/><circle cx="8.5" cy="10" r="1"/><circle cx="12" cy="15.5" r="1"/><circle cx="16" cy="12.5" r=".8"/></symbol>
 <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
 <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9.5 9.5h5v5h-5zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
 <symbol id="i-print" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></symbol>
 </defs>
 </svg>
@@ -86,8 +88,8 @@
     </a>
 
     <div class="team-card">
-      <svg class="team-flag" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" fill="#00AFCA"/><circle cx="17" cy="15" r="5" fill="#FEC50C"/><g stroke="#FEC50C" stroke-width="1.2" stroke-linecap="round"><path d="M17 6.5v2M17 21.5v2M8.5 15h2M23.5 15h2M11 9l1.4 1.4M21.6 19.6 23 21M11 21l1.4-1.4M21.6 10.4 23 9"/></g><path d="M9 27c3-2 13-2 16 0" stroke="#FEC50C" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
-      <div><b>Сборная Казахстана</b><span>Водное поло · мужчины</span></div>
+      <svg class="team-flag" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="#2a1f45"/><path d="M17 6l9 3.5v6.2c0 5.6-3.8 9.6-9 11.3-5.2-1.7-9-5.7-9-11.3V9.5z" fill="none" stroke="#b18bff" stroke-width="1.8" stroke-linejoin="round"/><path d="M12.5 16.5l3 3 6-6.5" fill="none" stroke="#5ed3a8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><b>Демо-команда</b><span>24 спортсмена · вымышленные данные</span></div>
     </div>
 
     <nav class="nav-group" aria-label="Рабочее пространство">
@@ -97,6 +99,7 @@
       <a class="nav-item" href="#/twin" data-route="twin"><svg class="icon" aria-hidden="true"><use href="#i-twin"/></svg>Цифровой двойник</a>
       <a class="nav-item" href="#/medical" data-route="medical"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg>Медицинские данные</a>
       <a class="nav-item" href="#/analytics" data-route="analytics"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg>AI-аналитика</a>
+      <a class="nav-item" href="#/models" data-route="models"><svg class="icon" aria-hidden="true"><use href="#i-cpu"/></svg>Модели ИИ</a>
       <a class="nav-item" href="#/recommendations" data-route="recommendations"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg>Рекомендации<span class="count" id="rec-count" hidden>0</span></a>
       <a class="nav-item" href="#/reports" data-route="reports"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>Отчёты</a>
     </nav>
@@ -109,10 +112,10 @@
     </nav>
 
     <div class="side-promo">
-      <p class="kicker"><span class="dot"></span>Пилотный проект</p>
-      <b>Будущее спорта — в данных</b>
-      <p>24 спортсмена. Одна команда. Персональный подход.</p>
-      <a href="#/about">Стратегия платформы <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <p class="kicker"><span class="dot"></span>Модели ИИ v1.0</p>
+      <b>Обучены на открытых научных данных</b>
+      <p>Риск травмы и готовность на завтра — с честными метриками.</p>
+      <a href="#/models">Как устроены модели <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
     <div class="side-foot">Медицина. Данные. Результат. · © <span data-year>2026</span> AI Sports</div>
   </aside>
@@ -135,6 +138,8 @@
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
+<script src="models.js"></script>
+<script src="model.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 <script src="main.js" defer></script>

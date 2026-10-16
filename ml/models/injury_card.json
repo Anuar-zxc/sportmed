@@ -1,0 +1,160 @@
+{
+ "name": "injury_risk",
+ "version": "1.0.0",
+ "dataset": {
+  "title": "Injury Prediction in Competitive Runners (Lövdal, den Hartigh, Azzopardi, 2021)",
+  "doi": "10.34894/UWU9PV",
+  "url": "https://doi.org/10.34894/UWU9PV",
+  "license": "CC0 1.0",
+  "athletes": 74,
+  "days": 42766,
+  "events": 583
+ },
+ "validation": "5-fold GroupKFold по спортсменам (модель проверяется на людях, которых не видела при обучении)",
+ "metrics_oof": {
+  "logreg_load_ratio": {
+   "roc_auc": 0.5281,
+   "pr_auc": 0.0152,
+   "brier": 0.01359
+  },
+  "logreg_all": {
+   "roc_auc": 0.615,
+   "pr_auc": 0.0276,
+   "brier": 0.01349
+  },
+  "hgb_0": {
+   "roc_auc": 0.6168,
+   "pr_auc": 0.0242,
+   "brier": 0.01344
+  },
+  "hgb_1": {
+   "roc_auc": 0.6036,
+   "pr_auc": 0.0235,
+   "brier": 0.01347
+  },
+  "hgb_2": {
+   "roc_auc": 0.6053,
+   "pr_auc": 0.0246,
+   "brier": 0.01346
+  },
+  "hgb_3": {
+   "roc_auc": 0.6036,
+   "pr_auc": 0.0236,
+   "brier": 0.01346
+  }
+ },
+ "chosen": "hgb_0",
+ "ci95_bootstrap_athletes": {
+  "roc_auc": [
+   0.583,
+   0.647
+  ],
+  "pr_auc": [
+   0.017,
+   0.039
+  ]
+ },
+ "ci95_baseline_acwr": {
+  "roc_auc": [
+   0.478,
+   0.579
+  ]
+ },
+ "brier_constant": 0.01345,
+ "brier_calibrated": 0.0134,
+ "lift_top_decile": 1.8,
+ "reliability": [
+  {
+   "pred": 0.0043,
+   "obs": 0.0049,
+   "n": 4277
+  },
+  {
+   "pred": 0.0084,
+   "obs": 0.0091,
+   "n": 4277
+  },
+  {
+   "pred": 0.0102,
+   "obs": 0.0105,
+   "n": 4277
+  },
+  {
+   "pred": 0.0113,
+   "obs": 0.0108,
+   "n": 4277
+  },
+  {
+   "pred": 0.0123,
+   "obs": 0.0108,
+   "n": 4277
+  },
+  {
+   "pred": 0.0134,
+   "obs": 0.015,
+   "n": 4277
+  },
+  {
+   "pred": 0.0148,
+   "obs": 0.0131,
+   "n": 4276
+  },
+  {
+   "pred": 0.0164,
+   "obs": 0.0171,
+   "n": 4276
+  },
+  {
+   "pred": 0.0189,
+   "obs": 0.0206,
+   "n": 4276
+  },
+  {
+   "pred": 0.0265,
+   "obs": 0.0246,
+   "n": 4276
+  }
+ ],
+ "permutation_importance_auc": {
+  "strength7_rel": 0.0342,
+  "load7_rel": 0.0214,
+  "hi_share7_rel": 0.01,
+  "exert_z": 0.0088,
+  "hi7_rel": 0.0082,
+  "spike7": 0.0079,
+  "recov_z": 0.0064,
+  "monotony7": 0.0056,
+  "sessions7_rel": 0.0052,
+  "days_since_rest": 0.0002,
+  "trend3": -0.0004,
+  "rest7": -0.0028
+ },
+ "feature_medians": {
+  "load7_rel": 0.9966,
+  "monotony7": 1.4336,
+  "rest7": 2.0,
+  "hi7_rel": 0.6716,
+  "hi_share7_rel": 0.6753,
+  "spike7": 1.3491,
+  "trend3": 1.0021,
+  "sessions7_rel": 1.0195,
+  "strength7_rel": 0.6948,
+  "days_since_rest": 1.0,
+  "exert_z": 0.2283,
+  "recov_z": 0.2563
+ },
+ "missing_share": {
+  "load7_rel": 0.049,
+  "monotony7": 0.059,
+  "rest7": 0.0,
+  "hi7_rel": 0.129,
+  "hi_share7_rel": 0.129,
+  "spike7": 0.049,
+  "trend3": 0.059,
+  "sessions7_rel": 0.049,
+  "strength7_rel": 0.146,
+  "days_since_rest": 0.0,
+  "exert_z": 0.086,
+  "recov_z": 0.115
+ }
+}

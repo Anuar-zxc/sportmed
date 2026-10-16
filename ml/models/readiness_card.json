@@ -1,0 +1,172 @@
+{
+ "name": "readiness_next_day",
+ "version": "1.0.0",
+ "dataset": {
+  "title": "SoccerMon (Midoglu et al., 2024, Scientific Data)",
+  "doi": "10.1038/s41597-024-03386-x",
+  "url": "https://doi.org/10.1038/s41597-024-03386-x",
+  "license": "CC BY 4.0",
+  "processed_by": "github.com/zacfrappier/SoccerMon-Injury-Prediction",
+  "players": 22,
+  "pairs": 4770,
+  "team": "B (Toppserien, 2020–2021)"
+ },
+ "validation": "5-fold GroupKFold по игрокам",
+ "regression": {
+  "baseline_persistence": {
+   "mae": 0.6583,
+   "rmse": 1.1627,
+   "r2": 0.2837
+  },
+  "baseline_personal_mean": {
+   "mae": 0.7907,
+   "rmse": 1.135,
+   "r2": 0.3174
+  },
+  "ridge": {
+   "mae": 0.6376,
+   "rmse": 0.9336,
+   "r2": 0.5381
+  },
+  "huber": {
+   "mae": 0.6254,
+   "rmse": 0.9392,
+   "r2": 0.5325
+  },
+  "hgb_0": {
+   "mae": 0.64,
+   "rmse": 0.9512,
+   "r2": 0.5205
+  },
+  "hgb_1": {
+   "mae": 0.6459,
+   "rmse": 0.958,
+   "r2": 0.5137
+  }
+ },
+ "regression_chosen": "huber",
+ "mae_ci95": [
+  0.52,
+  0.752
+ ],
+ "mae_ci95_persistence": [
+  0.484,
+  0.842
+ ],
+ "pi80_residual": [
+  -1.025,
+  0.858
+ ],
+ "classification": {
+  "baseline_today_deviation": {
+   "roc_auc": 0.634,
+   "pr_auc": 0.2989
+  },
+  "logreg": {
+   "roc_auc": 0.6858,
+   "pr_auc": 0.3074
+  },
+  "hgb_0": {
+   "roc_auc": 0.6946,
+   "pr_auc": 0.3044
+  },
+  "hgb_1": {
+   "roc_auc": 0.6927,
+   "pr_auc": 0.2986
+  }
+ },
+ "classification_chosen": "hgb_0",
+ "auc_ci95": [
+  0.642,
+  0.742
+ ],
+ "brier_constant": 0.12418,
+ "brier_calibrated": 0.11503,
+ "low_rate": 0.1453,
+ "reliability": [
+  {
+   "pred": 0.0296,
+   "obs": 0.0314,
+   "n": 477
+  },
+  {
+   "pred": 0.061,
+   "obs": 0.0881,
+   "n": 477
+  },
+  {
+   "pred": 0.0828,
+   "obs": 0.0881,
+   "n": 477
+  },
+  {
+   "pred": 0.1026,
+   "obs": 0.1027,
+   "n": 477
+  },
+  {
+   "pred": 0.1202,
+   "obs": 0.086,
+   "n": 477
+  },
+  {
+   "pred": 0.1384,
+   "obs": 0.1195,
+   "n": 477
+  },
+  {
+   "pred": 0.1585,
+   "obs": 0.1384,
+   "n": 477
+  },
+  {
+   "pred": 0.1821,
+   "obs": 0.1887,
+   "n": 477
+  },
+  {
+   "pred": 0.2257,
+   "obs": 0.2474,
+   "n": 477
+  },
+  {
+   "pred": 0.3518,
+   "obs": 0.3627,
+   "n": 477
+  }
+ ],
+ "permutation_importance_mae": {
+  "readiness3": 0.2544,
+  "readiness": 0.1054,
+  "readiness_base": 0.0832,
+  "srpe_today": 0.0368,
+  "fatigue3": 0.0156,
+  "soreness3": 0.0139,
+  "stress": 0.0123,
+  "soreness": 0.0059,
+  "srpe7_rel": 0.0037,
+  "sleep_quality": 0.0022,
+  "sleep_duration": 0.0008,
+  "acwr_srpe": 0.0003,
+  "mood": -0.0002,
+  "fatigue": -0.0003,
+  "monotony7_srpe": -0.0006
+ },
+ "missing_share": {
+  "readiness": 0.0,
+  "fatigue": 0.001,
+  "mood": 0.001,
+  "sleep_duration": 0.001,
+  "sleep_quality": 0.001,
+  "soreness": 0.0,
+  "stress": 0.001,
+  "readiness3": 0.0,
+  "fatigue3": 0.0,
+  "soreness3": 0.0,
+  "readiness_base": 0.0,
+  "srpe_today": 0.0,
+  "srpe7_rel": 0.054,
+  "acwr_srpe": 0.106,
+  "monotony7_srpe": 0.045
+ }
+}
