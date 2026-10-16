@@ -1,10 +1,19 @@
-"""Модель риска травмы на следующий день.
+"""Модель риска травмы на следующий день: обучение на двух видах спорта.
 
-Данные: Lövdal S., den Hartigh R., Azzopardi G. (2021) «Replication Data for: Injury Prediction In
-Competitive Runners With Machine Learning», DataverseNL, doi:10.34894/UWU9PV, лицензия CC0 1.0.
-74 бегуна высокого уровня, 2012–2019, дневной журнал тренировок и самочувствия.
+Когорты:
+  1. Бегуны — Lövdal, den Hartigh, Azzopardi (2021), DataverseNL, doi:10.34894/UWU9PV, CC0 1.0:
+     74 бегуна высокого уровня, 2012–2019, дневной журнал тренировок и самочувствия.
+  2. Футболистки — SoccerMon (Midoglu et al., 2024, Scientific Data, doi:10.1038/s41597-024-03386-x,
+     CC BY 4.0), дневная нагрузка sRPE + GPS и дни травм 50 игроков двух команд
+     (подготовка: ml/prepare_football.py, вход — ml/fetch_data.sh).
 
-Запуск: python ml/train_injury.py <путь к day_approach_maskedID_timeseries.csv> <папка вывода>
+Модель обучается на бегунах (кросс-валидация по спортсменам); футболистки служат ВНЕШНЕЙ
+проверкой переноса на другой вид спорта. Эксперимент с объединённым обучением показал, что
+после честной фильтрации экспозиции у футболисток остаётся слишком мало событий (21 эпизод),
+перенос не подтверждается, а объединённая модель не улучшает качество на бегунах — поэтому
+в продукт идёт модель бегунов, а результат переноса публикуется в карточке как ограничение.
+
+Запуск: python ml/train_injury.py <day_approach_maskedID_timeseries.csv> <папка вывода> [football_series.json]
 """
 from __future__ import annotations
 
@@ -72,6 +81,36 @@ def build_matrix(athletes):
     return np.array(X, dtype=float), np.array(y), np.array(groups)
 
 
+def build_football(path: str):
+    """Матрица по футболисткам: цель — начало эпизода травмы; дни текущего эпизода
+    и 7 дней после начала исключены; нужен документированный контекст (≥ 5 из 7 дней)."""
+    data = json.loads(Path(path).read_text())
+    X, y, groups = [], [], []
+    nan = float("nan")
+    for pl in data["players"]:
+        n = pl["n"]
+        load = np.array([nan if v is None else v for v in pl["load"]], dtype=float)
+        hi = np.array([nan if v is None else v for v in pl["hi"]], dtype=float)
+        sessions = np.array([nan if v is None else v for v in pl["sessions"]], dtype=float)
+        empty = np.full(n, nan)
+        series = {"load": load, "hi": hi, "sessions": sessions, "strength": empty,
+                  "exertion": empty, "success": empty, "recovery": empty}
+        starts = set(pl["episode_starts"])
+        injdays = set(pl["injury_days"])
+        for t in range(7, n):
+            if t in injdays and t not in starts:
+                continue  # продолжающийся эпизод
+            if any(0 < t - s0 <= 7 for s0 in starts):
+                continue  # окно после начала эпизода
+            x = injury_features_at(series, t, personal_norms(series, t))
+            if x[0] != x[0]:
+                continue  # нет недельного контекста или личной нормы — вне экспозиции
+            X.append(x)
+            y.append(1 if t in starts else 0)
+            groups.append("F:" + pl["id"])
+    return np.array(X, dtype=float), np.array(y), np.array(groups, dtype=object)
+
+
 def boot_ci(y, p, groups, fn, n=300, rng=None):
     rng = rng or np.random.default_rng(SEED)
     ug = np.unique(groups)
@@ -85,12 +124,18 @@ def boot_ci(y, p, groups, fn, n=300, rng=None):
     return [round(float(np.percentile(vals, 2.5)), 3), round(float(np.percentile(vals, 97.5)), 3)]
 
 
-def main(src: str, out: str):
+def main(src: str, out: str, football: str | None = None):
     t0 = time.time()
     df = pd.read_csv(src)
     athletes = reconstruct(df)
-    X, y, g = build_matrix(athletes)
-    print(f"matrix {X.shape}, events {y.sum()}, athletes {len(np.unique(g))}, {time.time()-t0:.0f}s")
+    Xr, yr, gr = build_matrix(athletes)
+    gr = np.array(["R:" + str(a) for a in gr], dtype=object)
+    print(f"runners {Xr.shape}, events {yr.sum()}, athletes {len(np.unique(gr))}, {time.time()-t0:.0f}s")
+    Xf = yf = gf = None
+    if football:
+        Xf, yf, gf = build_football(football)
+        print(f"football {Xf.shape}, events {yf.sum()}, players {len(np.unique(gf))}")
+    X, y, g = Xr, yr, gr  # обучение и отбор — только бегуны; футболистки — внешняя проверка
 
     try:
         cv = GroupKFold(n_splits=5, shuffle=True, random_state=SEED)
@@ -148,6 +193,33 @@ def main(src: str, out: str):
     prm = grid[int(best.split("_")[1])]
     p_best = oofs[best]
     print("best", best, prm)
+
+    transfer = None
+    if football is not None:
+        # внешняя проверка переноса: финальная конфигурация, обученная на бегунах, на футболистках
+        m_r = HistGradientBoostingClassifier(random_state=SEED, early_stopping=False, **prm).fit(Xr, yr)
+        p_tr = m_r.predict_proba(Xf)[:, 1]
+        ci_tr = boot_ci(yf, p_tr, gf, roc_auc_score)
+        # и симметричный эксперимент: объединённое обучение (для карточки, в продукт не идёт)
+        Xp, yp, gp = np.vstack([Xr, Xf]), np.concatenate([yr, yf]), np.concatenate([gr, gf])
+        try:
+            cvp = GroupKFold(n_splits=5, shuffle=True, random_state=SEED)
+        except TypeError:
+            cvp = GroupKFold(n_splits=5)
+        pp = np.zeros(len(yp))
+        for tr_i, te_i in cvp.split(Xp, yp, gp):
+            m = HistGradientBoostingClassifier(random_state=SEED, early_stopping=False, **prm).fit(Xp[tr_i], yp[tr_i])
+            pp[te_i] = m.predict_proba(Xp[te_i])[:, 1]
+        mask_f, mask_r = np.arange(len(yp)) >= len(yr), np.arange(len(yp)) < len(yr)
+        transfer = {
+            "football_days": int(len(yf)), "football_events": int(yf.sum()),
+            "runners_model_on_football_auc": round(roc_auc_score(yf, p_tr), 4),
+            "runners_model_on_football_auc_ci95": ci_tr,
+            "pooled_oof_auc_runners": round(roc_auc_score(yp[mask_r], pp[mask_r]), 4),
+            "pooled_oof_auc_football": round(roc_auc_score(yp[mask_f], pp[mask_f]), 4),
+            "conclusion": "Перенос на футболисток не подтверждён: событий после честной фильтрации мало (21), AUC неотличим от случайного; объединённое обучение не улучшает качество на бегунах. В продукте — модель бегунов; для нового вида спорта нужны свои размеченные исходы.",
+        }
+        print("transfer", transfer)
 
     # калибровка Платта на OOF-прогнозах: монотонная и гладкая, сохраняет ранжирование
     # (изотоническая регрессия на редких событиях даёт широкие «ступени» с одинаковым риском у разных людей)
@@ -214,6 +286,19 @@ def main(src: str, out: str):
             "doi": "10.34894/UWU9PV", "url": "https://doi.org/10.34894/UWU9PV", "license": "CC0 1.0",
             "athletes": int(len(np.unique(g))), "days": int(len(y)), "events": int(y.sum()),
         },
+        "datasets": [
+            {"title": "Injury Prediction in Competitive Runners (Lövdal, den Hartigh, Azzopardi, 2021)",
+             "doi": "10.34894/UWU9PV", "url": "https://doi.org/10.34894/UWU9PV", "license": "CC0 1.0",
+             "sport": "бег (мужчины и женщины, высокий уровень)",
+             "athletes": int(len(np.unique(gr))), "days": int(len(yr)), "events": int(yr.sum())},
+        ] + ([
+            {"title": "SoccerMon (Midoglu et al., 2024, Scientific Data) — дни травм и нагрузка sRPE/GPS",
+             "doi": "10.1038/s41597-024-03386-x", "url": "https://doi.org/10.1038/s41597-024-03386-x", "license": "CC BY 4.0",
+             "processed_by": "github.com/Julie-Landrevie/womens-football-load-monitoring",
+             "sport": "футбол (женщины, элитная лига)",
+             "athletes": int(len(np.unique(gf))), "days": int(len(yf)), "events": int(yf.sum())},
+        ] if football else []),
+        "transfer": transfer,
         "validation": "5-fold GroupKFold по спортсменам (модель проверяется на людях, которых не видела при обучении)",
         "metrics_oof": results,
         "chosen": best,
@@ -239,4 +324,4 @@ def main(src: str, out: str):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)

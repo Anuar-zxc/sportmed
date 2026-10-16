@@ -17,4 +17,8 @@ fi
 if [ ! -d soccermon ]; then
   git clone --depth 1 https://github.com/zacfrappier/SoccerMon-Injury-Prediction soccermon
 fi
-echo "Готово: ml/data/runners и ml/data/soccermon"
+# 3) SoccerMon — GPS и дни травм обеих команд (для внешней проверки переноса), CC BY 4.0.
+if [ ! -d football ]; then
+  git clone --depth 1 https://github.com/Julie-Landrevie/womens-football-load-monitoring football
+fi
+echo "Готово: ml/data/runners, ml/data/soccermon и ml/data/football"

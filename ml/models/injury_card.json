@@ -10,124 +10,159 @@
   "days": 42766,
   "events": 583
  },
+ "datasets": [
+  {
+   "title": "Injury Prediction in Competitive Runners (Lövdal, den Hartigh, Azzopardi, 2021)",
+   "doi": "10.34894/UWU9PV",
+   "url": "https://doi.org/10.34894/UWU9PV",
+   "license": "CC0 1.0",
+   "sport": "бег (мужчины и женщины, высокий уровень)",
+   "athletes": 74,
+   "days": 42766,
+   "events": 583
+  },
+  {
+   "title": "SoccerMon (Midoglu et al., 2024, Scientific Data) — дни травм и нагрузка sRPE/GPS",
+   "doi": "10.1038/s41597-024-03386-x",
+   "url": "https://doi.org/10.1038/s41597-024-03386-x",
+   "license": "CC BY 4.0",
+   "processed_by": "github.com/Julie-Landrevie/womens-football-load-monitoring",
+   "sport": "футбол (женщины, элитная лига)",
+   "athletes": 48,
+   "days": 16599,
+   "events": 21
+  }
+ ],
+ "transfer": {
+  "football_days": 16599,
+  "football_events": 21,
+  "runners_model_on_football_auc": 0.4412,
+  "runners_model_on_football_auc_ci95": [
+   0.263,
+   0.578
+  ],
+  "pooled_oof_auc_runners": 0.6165,
+  "pooled_oof_auc_football": 0.4445,
+  "conclusion": "Перенос на футболисток не подтверждён: событий после честной фильтрации мало (21), AUC неотличим от случайного; объединённое обучение не улучшает качество на бегунах. В продукте — модель бегунов; для нового вида спорта нужны свои размеченные исходы."
+ },
  "validation": "5-fold GroupKFold по спортсменам (модель проверяется на людях, которых не видела при обучении)",
  "metrics_oof": {
   "logreg_load_ratio": {
-   "roc_auc": 0.5281,
-   "pr_auc": 0.0152,
+   "roc_auc": 0.4981,
+   "pr_auc": 0.0141,
    "brier": 0.01359
   },
   "logreg_all": {
-   "roc_auc": 0.615,
-   "pr_auc": 0.0276,
-   "brier": 0.01349
+   "roc_auc": 0.6072,
+   "pr_auc": 0.0256,
+   "brier": 0.01356
   },
   "hgb_0": {
-   "roc_auc": 0.6168,
-   "pr_auc": 0.0242,
-   "brier": 0.01344
+   "roc_auc": 0.6241,
+   "pr_auc": 0.0261,
+   "brier": 0.01342
   },
   "hgb_1": {
-   "roc_auc": 0.6036,
-   "pr_auc": 0.0235,
+   "roc_auc": 0.6158,
+   "pr_auc": 0.0244,
    "brier": 0.01347
   },
   "hgb_2": {
-   "roc_auc": 0.6053,
+   "roc_auc": 0.6179,
    "pr_auc": 0.0246,
    "brier": 0.01346
   },
   "hgb_3": {
-   "roc_auc": 0.6036,
-   "pr_auc": 0.0236,
-   "brier": 0.01346
+   "roc_auc": 0.6126,
+   "pr_auc": 0.0243,
+   "brier": 0.01345
   }
  },
  "chosen": "hgb_0",
  "ci95_bootstrap_athletes": {
   "roc_auc": [
-   0.583,
-   0.647
+   0.591,
+   0.661
   ],
   "pr_auc": [
-   0.017,
-   0.039
+   0.019,
+   0.044
   ]
  },
  "ci95_baseline_acwr": {
   "roc_auc": [
-   0.478,
-   0.579
+   0.449,
+   0.556
   ]
  },
  "brier_constant": 0.01345,
  "brier_calibrated": 0.0134,
- "lift_top_decile": 1.8,
+ "lift_top_decile": 1.97,
  "reliability": [
   {
-   "pred": 0.0043,
-   "obs": 0.0049,
+   "pred": 0.0039,
+   "obs": 0.0056,
    "n": 4277
   },
   {
    "pred": 0.0084,
-   "obs": 0.0091,
+   "obs": 0.0084,
    "n": 4277
   },
   {
-   "pred": 0.0102,
-   "obs": 0.0105,
+   "pred": 0.01,
+   "obs": 0.0096,
    "n": 4277
   },
   {
-   "pred": 0.0113,
-   "obs": 0.0108,
+   "pred": 0.0112,
+   "obs": 0.0098,
    "n": 4277
   },
   {
-   "pred": 0.0123,
-   "obs": 0.0108,
+   "pred": 0.0122,
+   "obs": 0.0094,
    "n": 4277
   },
   {
    "pred": 0.0134,
-   "obs": 0.015,
+   "obs": 0.014,
    "n": 4277
   },
   {
-   "pred": 0.0148,
-   "obs": 0.0131,
+   "pred": 0.0147,
+   "obs": 0.0161,
    "n": 4276
   },
   {
-   "pred": 0.0164,
-   "obs": 0.0171,
+   "pred": 0.0165,
+   "obs": 0.018,
    "n": 4276
   },
   {
-   "pred": 0.0189,
-   "obs": 0.0206,
+   "pred": 0.0191,
+   "obs": 0.0185,
    "n": 4276
   },
   {
-   "pred": 0.0265,
-   "obs": 0.0246,
+   "pred": 0.0269,
+   "obs": 0.0269,
    "n": 4276
   }
  ],
  "permutation_importance_auc": {
-  "strength7_rel": 0.0342,
-  "load7_rel": 0.0214,
-  "hi_share7_rel": 0.01,
-  "exert_z": 0.0088,
-  "hi7_rel": 0.0082,
-  "spike7": 0.0079,
-  "recov_z": 0.0064,
-  "monotony7": 0.0056,
-  "sessions7_rel": 0.0052,
-  "days_since_rest": 0.0002,
-  "trend3": -0.0004,
-  "rest7": -0.0028
+  "strength7_rel": 0.0405,
+  "load7_rel": 0.0305,
+  "exert_z": 0.0217,
+  "spike7": 0.0117,
+  "sessions7_rel": 0.011,
+  "recov_z": 0.0082,
+  "hi7_rel": 0.0055,
+  "hi_share7_rel": 0.0053,
+  "monotony7": 0.0043,
+  "trend3": 0.0014,
+  "rest7": -0.0004,
+  "days_since_rest": -0.0004
  },
  "feature_medians": {
   "load7_rel": 0.9966,

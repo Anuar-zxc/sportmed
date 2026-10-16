@@ -7,6 +7,7 @@
 
   var D = window.ASPData;
   var STORE = 'asp_app_v1';
+  var PSTORE = 'asp_pilot_v1';
   var EMAIL = 'ulasanuar@gmail.com';
   var view = document.getElementById('view');
 
@@ -15,7 +16,7 @@
     return {
       theme: 'dark', compact: false, role: 'doctor', offset: 0,
       custom: [], checkins: {}, decisions: {}, read: [],
-      staff: null, consents: {}, audit: [], auditFilter: 'all', consentAthlete: 'a03',
+      staff: null, consents: {}, audit: [], auditFilter: 'all', consentAthlete: 'a03', ws: 'demo',
       cols: { readiness: true, recovery: true, risk: true, sleep: true, hrv: false, status: true },
       sort: { key: 'risk', dir: 'desc' }, filter: 'all', range: 7,
       medSource: 'all', medAthlete: 'a03', twinAthlete: 'a03', recFilter: 'all', riskAthlete: 'a03'
@@ -33,9 +34,37 @@
   var state = load();
   function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* ignore */ } }
 
+  /* ----- Рабочее пространство «Моя команда» (режим пилота): данные только на этом устройстве ----- */
+  function loadPilot() {
+    try {
+      var p = JSON.parse(localStorage.getItem(PSTORE) || 'null');
+      if (p && p.team && Array.isArray(p.athletes) && p.records) return p;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  var pilot = loadPilot();
+  function savePilot() {
+    if (!pilot) return;
+    try { localStorage.setItem(PSTORE, JSON.stringify(pilot)); }
+    catch (e) { toast('Хранилище браузера переполнено — сделайте резервную копию и очистите старые записи'); }
+  }
+  function isPilot() { return state.ws === 'pilot' && !!pilot; }
+  function pilotRec(id, iso) {
+    pilot.records[id] = pilot.records[id] || {};
+    return (pilot.records[id][iso] = pilot.records[id][iso] || {});
+  }
+  function pilotRecordCount() {
+    var n = 0;
+    if (pilot) Object.keys(pilot.records).forEach(function (k) { n += Object.keys(pilot.records[k]).length; });
+    return n;
+  }
+
   var ML = window.ASPML;
-  var model = D.build({ custom: state.custom, checkins: state.checkins });
-  function rebuild() { model = D.build({ custom: state.custom, checkins: state.checkins }); }
+  function buildModel() {
+    return isPilot() ? D.build({ pilot: pilot }) : D.build({ custom: state.custom, checkins: state.checkins });
+  }
+  var model = buildModel();
+  function rebuild() { model = buildModel(); }
   var ui = { q: '', openId: null };
 
   var ROLES = {
@@ -72,7 +101,8 @@
   function scoreColor(v) { return v == null ? 'var(--faint)' : v >= 75 ? 'var(--mint)' : v >= 60 ? 'var(--violet)' : v >= 45 ? 'var(--orange)' : 'var(--red)'; }
   var STATUS = {
     ready: ['ok', 'Готов к нагрузке'], attention: ['warn', 'Требует внимания'],
-    recovery: ['info', 'Восстановление'], nodata: ['mute', 'Ожидает данных']
+    recovery: ['info', 'Восстановление'], nodata: ['mute', 'Ожидает данных'],
+    nocheckin: ['mute', 'Нет чек-ина']
   };
   function statusBadge(st) { var s = STATUS[st] || STATUS.nodata; return '<span class="badge ' + s[0] + '">' + s[1] + '</span>'; }
   function byId(id) { return model.athletes.filter(function (a) { return a.id === id; })[0]; }
@@ -85,14 +115,14 @@
   function team() {
     var list = allSnaps();
     var valid = list.filter(function (x) { return x.s.status !== 'nodata'; });
-    function avg(k) { return Math.round(D.mean(valid.map(function (x) { return x.s[k]; }))); }
+    function avg(k) { var vals = valid.map(function (x) { return x.s[k]; }).filter(function (v) { return v != null; }); return vals.length ? Math.round(D.mean(vals)) : null; }
     function avgPrev(k) { return Math.round(D.mean(valid.map(function (x) { return x.s[k]; }).filter(function (v) { return v != null; }))); }
     var series = function (k, days) {
       var out = [];
       for (var i = days - 1; i >= 0; i--) {
         var off = state.offset + i;
-        var vals = model.athletes.map(function (a) { return D.snapshot(a, off)[k]; }).filter(function (v) { return v != null; });
-        out.push(Math.round(D.mean(vals)));
+        var vals = model.athletes.map(function (a) { return D.snapshot(a, off)[k]; }).filter(function (v) { return v != null && v === v; });
+        out.push(vals.length ? Math.round(D.mean(vals)) : null);
       }
       return out;
     };
@@ -104,7 +134,7 @@
       attention: list.filter(function (x) { return x.s.status === 'attention'; }),
       ready: list.filter(function (x) { return x.s.status === 'ready'; }),
       recovering: list.filter(function (x) { return x.s.status === 'recovery'; }),
-      nodata: list.filter(function (x) { return x.s.status === 'nodata'; }),
+      nodata: list.filter(function (x) { return x.s.status === 'nodata' || x.s.status === 'nocheckin'; }),
       signals: list.filter(function (x) { return x.s.signal; }).sort(function (p, q) { return (q.s.risk || 0) - (p.s.risk || 0); }),
       series: series, labels: labels
     };
@@ -133,6 +163,9 @@
       if (kinds.indexOf('crp') > -1) {
         recs.push({ id: 'crp-' + a.id, a: a, cat: 'Медицина', ic: 'stetho', tone: 'o', owner: 'doctor', prio: 'Высокий', title: 'Оценка воспалительного маркера', text: 'СРБ выше референса — осмотр; решение о допуске к тренировкам принимает врач.', why: why });
       }
+      if (kinds.indexOf('self') > -1 || kinds.indexOf('sore') > -1) {
+        recs.push({ id: 'self-' + a.id, a: a, cat: 'Самочувствие', ic: 'brain', tone: '', owner: 'any', prio: 'Средний', title: 'Поговорить со спортсменом', text: 'самооценка в чек-ине заметно ниже обычного — короткий разговор до тренировки и, при необходимости, облегчённый план.', why: why });
+      }
       if (kinds.indexOf('vitd') > -1) {
         recs.push({ id: 'vitd-' + a.id, a: a, cat: 'Питание', ic: 'food', tone: 'm', owner: 'doctor', prio: 'Плановый', title: 'Витамин D и запасы железа', text: 'обсудить с нутрициологом коррекцию питания; повторный анализ через 6–8 недель.', why: why });
       }
@@ -149,9 +182,11 @@
     t.attention.concat(t.recovering.filter(function (x) { return x.s.signal; })).forEach(function (x, i) {
       notes.push({ id: 'n-' + x.a.id + '-' + state.offset, kind: 'warn', title: x.a.short, text: (x.s.signal || 'Отклонения от личной нормы') + ' · требует внимания врача', time: '07:' + (10 + i * 7), go: function () { openAthlete(x.a.id); } });
     });
-    t.nodata.forEach(function (x) { notes.push({ id: 'n-nd-' + x.a.id, kind: 'warn', title: 'Нет данных: ' + x.a.short, text: x.a.custom ? 'Новый профиль — подключите устройство' : 'Браслет не синхронизировался более 48 часов', time: '06:55', go: function () { openAthlete(x.a.id); } }); });
-    notes.push({ id: 'n-labs', kind: 'info', title: 'Загружены результаты анализов', text: 'Лабораторная панель от ' + dDay(model.athletes[0].labDate) + ' · 23 спортсмена', time: 'вчера', go: function () { go('medical'); } });
-    var noCheck = model.athletes.filter(function (a) { return !(state.checkins[a.id] || []).length; }).length;
+    t.nodata.forEach(function (x) { notes.push({ id: 'n-nd-' + x.a.id, kind: 'warn', title: (x.s.status === 'nocheckin' ? 'Нет чек-ина: ' : 'Нет данных: ') + x.a.short, text: x.a.pilot ? 'Сегодня нет записей — напомните заполнить чек-ин' : (x.a.custom ? 'Новый профиль — подключите устройство' : 'Браслет не синхронизировался более 48 часов'), time: '06:55', go: function () { openAthlete(x.a.id); } }); });
+    if (model.athletes[0] && model.athletes[0].labDate) notes.push({ id: 'n-labs', kind: 'info', title: 'Загружены результаты анализов', text: 'Лабораторная панель от ' + dDay(model.athletes[0].labDate) + ' · 23 спортсмена', time: 'вчера', go: function () { go('medical'); } });
+    var noCheck = isPilot()
+      ? model.athletes.filter(function (a) { var dd = a.days[a.days.length - 1]; return !dd || !dd.well; }).length
+      : model.athletes.filter(function (a) { return !(state.checkins[a.id] || []).length; }).length;
     notes.push({ id: 'n-check', kind: 'info', title: 'Утренний чек-ин', text: 'Не заполнили ' + noCheck + ' ' + plural(noCheck, 'спортсмен', 'спортсмена', 'спортсменов'), time: '08:00', go: function () { go('twin'); } });
     notes.push({ id: 'n-report', kind: 'ok', title: 'Еженедельный отчёт готов', text: 'Состояние команды — CSV для Excel', time: 'пн', go: function () { go('reports'); } });
     notes.forEach(function (n) { n.unread = state.read.indexOf(n.id) < 0; });
@@ -165,7 +200,8 @@
     var id = 'ch' + (++chartSeq);
     var W = 640, H = o.height || 220, pl = 34, pr = 12, pt = 12, pb = 26;
     var all = [];
-    o.series.forEach(function (s) { s.values.forEach(function (v) { if (v != null) all.push(v); }); });
+    o.series.forEach(function (s) { s.values.forEach(function (v) { if (v != null && v === v) all.push(v); }); });
+    if (!all.length) all = [0, 10];
     var min = o.min != null ? o.min : Math.floor((Math.min.apply(null, all) - 5) / 5) * 5;
     var max = o.max != null ? o.max : Math.ceil((Math.max.apply(null, all) + 5) / 5) * 5;
     if (max === min) max = min + 10;
@@ -185,10 +221,11 @@
     o.series.forEach(function (s, si) {
       var dpath = '', started = false;
       s.values.forEach(function (v, i) { if (v == null) { started = false; return; } dpath += (started ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); started = true; });
-      if (s.area) {
+      if (s.area && dpath) {
         var first = s.values.findIndex(function (v) { return v != null; });
-        var lastI = s.values.length - 1;
-        paths += '<path d="' + dpath + 'L' + x(lastI) + ' ' + (H - pb) + 'L' + x(first) + ' ' + (H - pb) + 'Z" style="fill:' + s.color + ';opacity:.1"/>';
+        var lastI2 = s.values.length - 1;
+        while (lastI2 > 0 && s.values[lastI2] == null) lastI2--;
+        paths += '<path d="' + dpath + 'L' + x(lastI2) + ' ' + (H - pb) + 'L' + x(first) + ' ' + (H - pb) + 'Z" style="fill:' + s.color + ';opacity:.1"/>';
       }
       paths += '<path d="' + dpath + '" fill="none" style="stroke:' + s.color + '" stroke-width="' + (s.width || 2.2) + '" stroke-linecap="round" stroke-linejoin="round"' + (s.dash ? ' stroke-dasharray="5 5"' : '') + '/>';
       if (!s.dash) {
@@ -376,6 +413,13 @@
   }
   function updateShell() {
     var r = ROLES[state.role];
+    var tcN = document.getElementById('tc-name'), tcS = document.getElementById('tc-sub');
+    if (tcN) {
+      tcN.textContent = wsLabel();
+      tcS.textContent = isPilot()
+        ? pilot.athletes.length + ' ' + plural(pilot.athletes.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' · ' + num(pilotRecordCount()) + ' ' + plural(pilotRecordCount(), 'запись', 'записи', 'записей')
+        : '24 спортсмена · вымышленные данные';
+    }
     document.getElementById('me-initials').textContent = r.initials;
     document.getElementById('me-name').textContent = r.name;
     document.getElementById('me-role').textContent = r.title;
@@ -397,7 +441,7 @@
       '<div class="page-actions">' + (extra || '') + '<button class="btn btn-primary" type="button" data-action="report">' + icon('download') + '<span class="lbl">Создать отчёт</span></button></div></div>';
   }
   function footerStrip() {
-    return '<div class="footer-strip"><span>' + icon('shield', 'icon-sm') + 'Защищённая среда · демонстрационные данные</span><span>AI помогает. Решение принимает специалист.</span><a href="#/about">Стратегия платформы ' + icon('arrow', 'icon-sm') + '</a></div>';
+    return '<div class="footer-strip"><span>' + icon('shield', 'icon-sm') + (isPilot() ? 'Режим пилота · данные команды только на этом устройстве' : 'Защищённая среда · демонстрационные данные') + '</span><span>AI помогает. Решение принимает специалист.</span>' + (isPilot() ? '<button class="linklike" type="button" data-action="pilot-backup" style="color:var(--text-2)">Резервная копия ' + '</button>' : '<a href="#/about">Стратегия платформы ' + icon('arrow', 'icon-sm') + '</a>') + '</div>';
   }
 
   function render() {
@@ -471,9 +515,10 @@
   function filterRows(list, f) {
     return list.filter(function (x) {
       if (f === 'ready') return x.s.status === 'ready';
+      if (f === 'nocheckin') return x.s.status === 'nocheckin';
       if (f === 'attention') return x.s.status === 'attention';
       if (f === 'recovery') return x.s.status === 'recovery';
-      if (f === 'nodata') return x.s.status === 'nodata';
+      if (f === 'nodata') return x.s.status === 'nodata' || x.s.status === 'nocheckin';
       return true;
     });
   }
@@ -635,6 +680,7 @@
             metricRow('Градиентный бустинг — в продукте', [num(best.roc_auc, 3), num(best.pr_auc, 3), num(I.brier_calibrated, 4)], true) +
           '</tbody></table></div>' +
           '<p class="muted" style="margin:0;font-size:12.5px">Доля травм в данных — ' + num(I.dataset.events / I.dataset.days * 100, 2) + '% дней. Brier для постоянного прогноза — ' + num(I.brier_constant, 4) + '.</p>' +
+          (I.transfer ? '<div class="note warn">' + icon('alert', 'icon-sm') + '<span><b>Внешняя проверка на другом виде спорта.</b> Модель без дообучения проверена на ' + num(I.transfer.football_days) + ' днях 48 футболисток (SoccerMon): ' + I.transfer.football_events + ' начало эпизода травмы, ROC-AUC ' + num(I.transfer.runners_model_on_football_auc, 2) + ' (95% ДИ ' + num(I.transfer.runners_model_on_football_auc_ci95[0], 2) + '–' + num(I.transfer.runners_model_on_football_auc_ci95[1], 2) + ') — перенос <b>не подтверждён</b>: событий слишком мало, сигнал неотличим от случайного. Объединённое обучение качество на бегунах не улучшило (' + num(I.transfer.pooled_oof_auc_runners, 2) + '). Вывод: для нового вида спорта модели нужны собственные размеченные исходы — именно их собирает пилот.</span></div>' : '') +
           '<div class="grid g-2" style="gap:16px;align-items:start"><div><b style="font-size:13.5px">Калибровка</b>' + reliabilityChart(I.reliability, 'Калибровка модели риска травмы') + '</div>' +
           '<div><b style="font-size:13.5px;display:block;margin-bottom:10px">Важность признаков</b>' + importanceBars(I.permutation_importance_auc, injLabel, 1, '') + '<p class="muted" style="margin:6px 0 0;font-size:12px">Падение ROC-AUC при перемешивании признака.</p></div></div>' +
         '</div></section>' +
@@ -673,7 +719,7 @@
         '</div></section>' +
       '<div class="grid g-2" style="align-items:start">' +
         '<section class="panel"><div class="panel-head"><div><h2>Ограничения и безопасное применение</h2></div></div><div class="panel-body"><div class="journal">' +
-          [['Перенос между видами спорта', 'Модель риска обучена на бегунах высокого уровня, модель готовности — на футболистках. Признаки сделаны относительными (к личной норме), но перед клиническим применением модель нужно дообучить и проверить на данных своей команды.'],
+          [['Перенос между видами спорта — измерен', 'Модель риска обучена на бегунах. Мы проверили её на 48 футболистках SoccerMon: перенос не подтвердился (AUC 0,44 при всего 21 событии), а дообучение на этой когорте не улучшило модель. Поэтому для своей команды прогноз нужно проверять в shadow-режиме и дообучать на собственных исходах.'],
            ['Умеренная точность', 'ROC-AUC около 0,6–0,7 — типичный уровень для прогноза травм по нагрузке и самочувствию. Прогноз помогает расставить приоритеты внимания, но пропускает часть травм и даёт ложные тревоги.'],
            ['Не медицинское изделие', 'Модели не ставят диагноз и не дают допуск к тренировкам. Острые симптомы оцениваются по медицинскому протоколу независимо от прогноза.'],
            ['Нужна история', 'Без 4–5 недель журнала нагрузки и регулярных чек-инов прогноз не строится: система честно показывает «недостаточно данных».'],
@@ -682,6 +728,7 @@
         '<section class="panel"><div class="panel-head"><div><h2>Источники данных и лицензии</h2><p>Открытые научные датасеты</p></div></div><div class="panel-body" style="display:flex;flex-direction:column;gap:12px;font-size:13.5px">' +
           '<div class="source-cite"><b>' + esc(I.dataset.title) + '</b><span>DataverseNL · <a href="' + I.dataset.url + '" target="_blank" rel="noopener">doi:' + esc(I.dataset.doi) + '</a> · ' + esc(I.dataset.license) + '</span><span class="muted">Дневной журнал тренировок и самочувствия 74 бегунов, 2012–2019.</span></div>' +
           '<div class="source-cite"><b>SoccerMon: A large-scale multivariate soccer athlete health, performance, and position monitoring dataset</b><span>Midoglu C. et al., Scientific Data 11, 553 (2024) · <a href="' + Rr.dataset.url + '" target="_blank" rel="noopener">doi:' + esc(Rr.dataset.doi) + '</a> · ' + esc(Rr.dataset.license) + '</span><span class="muted">Использована обработанная выгрузка команды B из открытого репозитория ' + esc(Rr.dataset.processed_by) + '. Данные изменены: агрегированы по дням, построены признаки.</span></div>' +
+          '<div class="source-cite"><b>SoccerMon · GPS и дни травм двух команд (внешняя проверка переноса)</b><span>Обработка: <a href="https://github.com/Julie-Landrevie/womens-football-load-monitoring" target="_blank" rel="noopener">github.com/Julie-Landrevie/womens-football-load-monitoring</a> · CC BY 4.0</span><span class="muted">50 игроков, 2020–2021; дни без записи считаются пропуском, цель — начало эпизода травмы.</span></div>' +
           '<div class="source-cite"><b>Код обучения и проверки</b><span><a href="https://github.com/Anuar-zxc/sportmed/tree/main/ml" target="_blank" rel="noopener">github.com/Anuar-zxc/sportmed/ml</a> · scikit-learn</span><span class="muted">Признаки в браузере совпадают с обучением до 1e-15 (автоматическая проверка verify_js.py).</span></div>' +
         '</div></section>' +
       '</div>' + footerStrip();
@@ -800,9 +847,11 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
   function templateRows() {
+    var dm = isPilot() ? D.build({}) : model;
+    function demoById(id) { return dm.athletes.filter(function (a) { return a.id === id; })[0]; }
     var out = [COLS], pick = [['a03', 'Спортсмен A'], ['a07', 'Спортсмен B'], ['a06', 'Спортсмен C']];
     pick.forEach(function (p) {
-      var a = byId(p[0]); if (!a) return;
+      var a = demoById(p[0]); if (!a) return;
       a.days.forEach(function (d) {
         var w = d.well || {};
         out.push([p[1], d.date.getFullYear() + '-' + String(d.date.getMonth() + 1).padStart(2, '0') + '-' + String(d.date.getDate()).padStart(2, '0'),
@@ -817,30 +866,50 @@
     var t = team();
     var rDays = state.range;
     var labels = t.labels(rDays), sr = t.series('readiness', rDays), sv = t.series('recovery', rDays);
-    var dR = t.readiness - t.prevReadiness, dV = t.recovery - t.prevRecovery;
+    var dR = (t.readiness != null && t.prevReadiness != null) ? t.readiness - t.prevReadiness : 0;
+    var dV = (t.recovery != null && t.prevRecovery != null) ? t.recovery - t.prevRecovery : 0;
     function delta(d) { var c = d > 0 ? 'up' : d < 0 ? 'down' : 'flat'; return '<span class="delta ' + c + '">' + (d > 0 ? icon('up', 'icon-sm') : d < 0 ? icon('dn', 'icon-sm') : '') + (d > 0 ? '+' : '') + d + '</span>'; }
     var riskSeries = t.series('risk', 7);
     var readyShare = Math.round(t.ready.length / Math.max(1, t.total) * 100);
     var insight;
-    var firstR = sr[0], lastR = sr[sr.length - 1], ch = lastR - firstR;
+    var firstR = sr[0], lastR = sr[sr.length - 1], ch = (lastR != null && firstR != null) ? lastR - firstR : 0;
     if (ch >= 2) insight = 'Команда на верном пути: готовность выросла на <b>' + ch + ' ' + plural(ch, 'пункт', 'пункта', 'пунктов') + '</b> за период.';
     else if (ch <= -2) insight = 'Готовность снизилась на <b>' + Math.abs(ch) + ' ' + plural(Math.abs(ch), 'пункт', 'пункта', 'пунктов') + '</b> за период — проверьте спортсменов с ранними сигналами.';
-    else insight = 'Готовность команды стабильна за период: <b>' + lastR + '/100</b>.';
+    else insight = lastR == null ? 'Пока мало данных для динамики — заполните чек-ины или импортируйте историю.' : 'Готовность команды стабильна за период: <b>' + lastR + '/100</b>.';
 
     var recs = buildRecs().filter(function (r) { return r.status === 'pending'; }).slice(0, 3);
     var top5 = sortRows(t.list, { key: 'risk', dir: 'desc' }).slice(0, 5);
+    var recCount = isPilot() ? pilotRecordCount() : 0;
+    var heroTags = isPilot()
+      ? '<span class="badge ice plain">' + icon('users', 'icon-sm') + 'Режим пилота</span><span class="badge plain">' + esc(pilot.team.sport || 'Команда') + '</span><span class="badge ok">Данные на этом устройстве</span>'
+      : '<span class="badge info plain">' + icon('users', 'icon-sm') + 'Демо-команда</span><span class="badge plain">Командный вид спорта</span><span class="badge ok">Модели ИИ v1.0</span>';
+    var heroTitle = isPilot() ? esc(pilot.team.name) : 'Сильная команда начинается со здоровья каждого.';
+    var heroSub = isPilot() ? 'Чек-ины, нагрузка и прогнозы моделей — на реальных данных вашей команды.' : 'Цифровой двойник спортсмена — от данных к действию.';
+    var heroMeta = '<span>' + icon('users', 'icon-sm') + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + '</span>' +
+      (isPilot() ? '<span>' + icon('file', 'icon-sm') + num(recCount) + ' ' + plural(recCount, 'запись', 'записи', 'записей') + '</span>' : '<span>' + icon('shield', 'icon-sm') + 'Вымышленные данные</span>') +
+      '<span>' + icon('cal', 'icon-sm') + 'Срез: ' + fmtFull.format(asOfDate()) + '</span>';
+    var pilotStart = '';
+    if (isPilot() && recCount === 0) {
+      pilotStart = '<section class="panel panel-body" style="display:flex;flex-direction:column;gap:14px;padding:26px">' +
+        '<h2 class="title-m" style="margin:0">С чего начать пилот</h2>' +
+        '<div class="steps-app">' +
+        '<div class="step-card"><span class="n">01</span><b>Импортируйте историю</b><p>Если нагрузка велась в таблице — загрузите CSV, и модели сразу получат контекст (для риска нужно ≥ 35 дней).</p><button class="btn btn-primary btn-sm" type="button" data-action="pilot-import" style="align-self:flex-start">' + icon('upload', 'icon-sm') + 'Импорт истории</button></div>' +
+        '<div class="step-card"><span class="n">02</span><b>Вносите день за днём</b><p>Утром — чек-ин из карточки спортсмена, после тренировки — «Нагрузка дня» для всей команды за минуту.</p><button class="btn btn-ghost btn-sm" type="button" data-action="team-load" style="align-self:flex-start">' + icon('load', 'icon-sm') + 'Нагрузка дня</button></div>' +
+        '<div class="step-card"><span class="n">03</span><b>Настройте резервную копию</b><p>Данные живут только на этом устройстве — скачивайте зашифрованную копию хотя бы раз в неделю.</p><button class="btn btn-ghost btn-sm" type="button" data-action="pilot-backup" style="align-self:flex-start">' + icon('download', 'icon-sm') + 'Резервная копия</button></div>' +
+        '</div></section>';
+    }
 
-    return pageHead('overview') +
+    return pageHead('overview', isPilot() ? '<button class="btn btn-ghost" type="button" data-action="team-load">' + icon('load') + '<span class="lbl">Нагрузка дня</span></button>' : '') +
       '<section class="team-hero" aria-label="Команда">' +
         '<svg class="hero-waves" viewBox="0 0 400 200" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="var(--violet)" stroke-width="1.2" opacity=".55"><path d="M0 60 C60 40 100 80 160 60 S260 40 320 60 400 70 400 70"/><path d="M0 90 C60 70 100 110 160 90 S260 70 320 90 400 100 400 100"/><path d="M0 120 C60 100 100 140 160 120 S260 100 320 120 400 130 400 130"/><path d="M0 150 C60 130 100 170 160 150 S260 130 320 150 400 160 400 160"/></g></svg>' +
-        '<div style="position:relative"><div class="tags"><span class="badge info plain">' + icon('users', 'icon-sm') + 'Демо-команда</span><span class="badge plain">Командный вид спорта</span><span class="badge ok">Модели ИИ v1.0</span></div>' +
-        '<h2>Сильная команда начинается со здоровья каждого.</h2><p>Цифровой двойник спортсмена — от данных к действию.</p>' +
-        '<div class="meta-row"><span>' + icon('users', 'icon-sm') + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + '</span><span>' + icon('shield', 'icon-sm') + 'Вымышленные данные</span><span>' + icon('cal', 'icon-sm') + 'Срез: ' + fmtFull.format(asOfDate()) + '</span></div></div>' +
+        '<div style="position:relative"><div class="tags">' + heroTags + '</div>' +
+        '<h2>' + heroTitle + '</h2><p>' + heroSub + '</p>' +
+        '<div class="meta-row">' + heroMeta + '</div></div>' +
         '<span class="hero-twin">' + icon('shield', 'icon-sm') + 'Digital Athlete Twin</span>' +
-      '</section>' +
+      '</section>' + pilotStart +
       '<div class="grid g-4">' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Готовность команды</span><span class="kpi-ic v">' + icon('activity', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.readiness + '<small>/ 100</small></span>' + sparkline(t.series('readiness', 7), 'var(--violet)') + '</div><div class="kpi-foot">' + delta(dR) + 'к прошлой неделе</div></article>' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Восстановление</span><span class="kpi-ic m">' + icon('heart', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.recovery + '<small>/ 100</small></span>' + sparkline(t.series('recovery', 7), 'var(--mint)') + '</div><div class="kpi-foot">' + delta(dV) + 'к прошлой неделе</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Готовность команды</span><span class="kpi-ic v">' + icon('activity', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + (t.readiness == null ? '—' : t.readiness) + '<small>/ 100</small></span>' + sparkline(t.series('readiness', 7), 'var(--violet)') + '</div><div class="kpi-foot">' + delta(dR) + 'к прошлой неделе</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Восстановление</span><span class="kpi-ic m">' + icon('heart', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + (t.recovery == null ? '—' : t.recovery) + '<small>/ 100</small></span>' + sparkline(t.series('recovery', 7), 'var(--mint)') + '</div><div class="kpi-foot">' + delta(dV) + 'к прошлой неделе</div></article>' +
         '<article class="panel kpi"><div class="kpi-top"><span>Требуют внимания</span><span class="kpi-ic o">' + icon('shield', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.attention.length + '<small>' + plural(t.attention.length, 'спортсмен', 'спортсмена', 'спортсменов') + '</small></span>' + sparkline(riskSeries, 'var(--orange)') + '</div><div class="kpi-foot"><span class="delta down">' + t.signals.length + '</span>с ранними сигналами · риск по модели</div></article>' +
         '<article class="panel kpi"><div class="kpi-top"><span>Готовы к тренировкам</span><span class="kpi-ic v">' + icon('users', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.ready.length + '<small>/ ' + t.total + '</small></span></div><div class="kpi-foot"><span class="delta flat">' + readyShare + '%</span>состава команды</div></article>' +
       '</div>' +
@@ -857,7 +926,7 @@
       '<div class="grid g-main">' +
         '<section class="panel" aria-labelledby="tbl-title"><div class="panel-head"><div><h2 id="tbl-title">Спортсмены <span class="badge plain mute">' + t.total + '</span></h2><p>Сортировка по риску травмы (модель) — сначала те, кому нужно внимание</p></div><a class="btn btn-ghost btn-sm" href="#/athletes">Все спортсмены ' + icon('arrow', 'icon-sm') + '</a></div>' +
           '<div style="margin-top:12px">' + teamTable(top5, { readiness: true, recovery: true, risk: true, status: true }, { lite: true }) + '</div>' +
-          '<div class="panel-foot"><span>Показано 5 из ' + t.total + '</span><span>' + icon('refresh', 'icon-sm') + ' Данные синхронизированы</span></div></section>' +
+          '<div class="panel-foot"><span>Показано ' + Math.min(5, t.total) + ' из ' + t.total + '</span><span>' + icon('refresh', 'icon-sm') + (isPilot() ? ' Данные на этом устройстве' : ' Данные синхронизированы') + '</span></div></section>' +
         '<section class="panel" aria-labelledby="rec-title"><div class="panel-head"><div><h2 id="rec-title">Рекомендации AI</h2><p>Персональные действия на сегодня</p></div><span class="badge info plain">AI insights</span></div>' +
           '<div style="margin-top:8px">' + (recs.map(recCard).join('') || '<div class="empty">' + icon('check') + 'Все рекомендации рассмотрены</div>') + '</div>' +
           '<div class="panel-foot"><span>Решение принимает специалист</span><a class="btn btn-ghost btn-sm" href="#/recommendations">Все рекомендации ' + icon('arrow', 'icon-sm') + '</a></div></section>' +
@@ -870,7 +939,7 @@
     var rows = filterRows(t.list, state.filter);
     if (ui.q) { var q = ui.q.toLowerCase(); rows = rows.filter(function (x) { return (x.a.short + ' ' + x.a.posName + ' ' + x.a.num).toLowerCase().indexOf(q) > -1; }); }
     rows = sortRows(rows);
-    return pageHead('athletes', '<button class="btn btn-ghost" type="button" data-action="add-athlete">' + icon('plus') + '<span class="lbl">Добавить спортсмена</span></button>') +
+    return pageHead('athletes', (isPilot() ? '<button class="btn btn-ghost" type="button" data-action="team-load">' + icon('load') + '<span class="lbl">Нагрузка дня</span></button>' : '') + '<button class="btn btn-ghost" type="button" data-action="add-athlete">' + icon('plus') + '<span class="lbl">Добавить спортсмена</span></button>') +
       '<section class="panel" aria-labelledby="ath-title"><div class="panel-head"><div><h2 id="ath-title">Состав <span class="badge plain mute">' + t.total + '</span></h2><p>Нажмите на строку, чтобы открыть карточку спортсмена</p></div></div>' +
       '<div class="table-tools"><div class="left">' + filterTabs(t, state.filter) +
       '<label class="mini-search">' + icon('search', 'icon-sm') + '<span class="sr-only">Поиск по составу</span><input type="search" id="ath-q" placeholder="Имя, позиция или номер" value="' + esc(ui.q) + '" autocomplete="off"></label></div>' +
@@ -892,7 +961,11 @@
 
   /* ---------- Twin ---------- */
   function latestCheckin(id) { var c = state.checkins[id] || []; return c[0] || null; }
-  function checkinStatus(c) { if (!c) return null; return (c.stress >= 4 || c.mood <= 2 || c.motivation <= 2 || (c.readiness != null && c.readiness <= 4) || c.fatigue >= 4) ? 'attention' : 'ok'; }
+  function checkinStatus(c) {
+    if (!c) return null;
+    function bad(v, op, th) { return v != null && (op === '>=' ? v >= th : v <= th); }
+    return (bad(c.stress, '>=', 4) || bad(c.mood, '<=', 2) || bad(c.motivation, '<=', 2) || bad(c.readiness, '<=', 4) || bad(c.fatigue, '>=', 4)) ? 'attention' : 'ok';
+  }
   function athleteSelect(idAttr, selected, label) {
     return '<label class="field" style="min-width:min(280px,100%)"><span class="label sr-only">' + label + '</span><select class="select" id="' + idAttr + '" aria-label="' + label + '">' +
       model.athletes.map(function (a) { return '<option value="' + a.id + '"' + (a.id === selected ? ' selected' : '') + '>' + esc(a.short) + ' · № ' + esc(a.num) + '</option>'; }).join('') + '</select></label>';
@@ -902,6 +975,10 @@
     var s = snapOf(a);
     var ci = latestCheckin(a.id);
     var mental = ci ? Math.round(((ci.mood + ci.motivation + (6 - ci.stress) + ci.sleepq + (6 - ci.soreness)) / 25) * 100) : null;
+    if (isPilot() && s.well) {
+      var wParts = [s.well.mood, s.well.stress, s.well.sleep_quality].filter(function (v) { return v != null; });
+      mental = wParts.length ? Math.round(D.mean(wParts) / 5 * 100) : null;
+    }
     var axes = [
       { name: 'Готовность', v: s.readiness }, { name: 'Восстановление', v: s.recovery },
       { name: 'Сон', v: s.sleep == null ? null : Math.round(D.clamp((s.sleep - 5) / 4, 0, 1) * 100) },
@@ -911,13 +988,18 @@
     ];
     var idx = a.days.length - 1 - state.offset;
     var days = a.days.slice(Math.max(0, idx - 29), idx + 1);
-    var checkins = state.checkins[a.id] || [];
+    var checkins = isPilot()
+      ? a.days.slice().reverse().filter(function (d2) { return d2.well; }).slice(0, 5).map(function (d2) {
+          var w2 = d2.well;
+          return { ts: d2.date.getTime(), dateOnly: true, readiness: w2.readiness, mood: w2.mood, stress: w2.stress != null ? 6 - w2.stress : null, motivation: null, sleepq: w2.sleep_quality, soreness: w2.soreness != null ? 6 - w2.soreness : null, fatigue: w2.fatigue != null ? 6 - w2.fatigue : null, note: d2.noteTxt || '' };
+        })
+      : (state.checkins[a.id] || []);
     var obs = checkins.slice(0, 5).map(function (c) {
       var st = checkinStatus(c);
       var detail = can('psych') ?
-        'Настроение ' + c.mood + '/5 · стресс ' + c.stress + '/5 · мотивация ' + c.motivation + '/5 · сон ' + c.sleepq + '/5 · болезненность ' + c.soreness + '/5' + (c.fatigue != null ? ' · усталость ' + c.fatigue + '/5' : '') + (c.note ? '<br><span class="muted">«' + esc(c.note) + '»</span>' : '') :
+        [['Настроение', c.mood], ['стресс', c.stress], ['мотивация', c.motivation], ['сон', c.sleepq], ['болезненность', c.soreness], ['усталость', c.fatigue]].filter(function (x) { return x[1] != null; }).map(function (x) { return x[0] + ' ' + x[1] + '/5'; }).join(' · ') + (c.note ? '<br><span class="muted">«' + esc(c.note) + '»</span>' : '') :
         'Обобщённый статус: ' + (st === 'attention' ? '<span class="val-warn">требуется внимание психолога</span>' : '<span class="val-good">в норме</span>');
-      return '<div class="journal-row"><span class="dot" style="background:' + (st === 'attention' ? 'var(--orange)' : 'var(--mint)') + '"></span><div><b>' + fmtTime.format(new Date(c.ts)) + (c.readiness != null ? ' · готовность ' + c.readiness + '/10' : '') + '</b><span>' + detail + '</span></div></div>';
+      return '<div class="journal-row"><span class="dot" style="background:' + (st === 'attention' ? 'var(--orange)' : 'var(--mint)') + '"></span><div><b>' + (c.dateOnly ? fmtFull.format(new Date(c.ts)) : fmtTime.format(new Date(c.ts))) + (c.readiness != null ? ' · готовность ' + c.readiness + '/10' : '') + '</b><span>' + detail + '</span></div></div>';
     }).join('');
     var labs = '';
     if (a.labs) {
@@ -935,7 +1017,9 @@
         '<section class="panel" aria-labelledby="today-title"><div class="panel-head"><div><h2 id="today-title">Сегодняшнее состояние</h2><p>' + fmtFull.format(asOfDate()) + '</p></div>' + (s.signal ? '<span class="badge warn">' + esc(s.signal) + '</span>' : '') + '</div><div class="panel-body" style="display:flex;flex-direction:column;gap:16px">' +
           (s.status === 'nodata' ? '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Нет свежих данных с устройства. Показатели появятся после синхронизации; первые 14–28 дней формируется личная норма.</span></div>' : '') +
           '<div class="metric-tiles"><div class="tile"><span>' + icon('activity', 'icon-sm') + 'Готовность</span><b class="' + scoreClass(s.readiness) + '">' + num(s.readiness) + '<small> /100</small></b></div><div class="tile"><span>' + icon('heart', 'icon-sm') + 'Восстановление</span><b class="' + scoreClass(s.recovery) + '">' + num(s.recovery) + '<small> /100</small></b></div><div class="tile"><span>' + icon('shield', 'icon-sm') + 'Риск травмы · 7 дн.</span><b class="' + riskClass(s.rr) + '">' + fmtRisk(s) + '</b><em>' + fmtRR(s.rr) + ' к среднему · модель</em></div></div>' +
-          '<div class="kv"><div><span>' + icon('sleep', 'icon-sm') + 'Сон</span><b>' + D.fmtHours(s.sleep) + '</b></div><div><span>' + icon('heart', 'icon-sm') + 'HRV</span><b>' + (s.hrv == null ? '—' : num(s.hrv) + ' мс') + '</b></div><div><span>' + icon('activity', 'icon-sm') + 'Пульс покоя</span><b>' + (s.rhr == null ? '—' : s.rhr + ' уд/мин') + '</b></div><div><span>' + icon('load', 'icon-sm') + 'ACWR</span><b>' + (s.acwr == null ? '—' : num(s.acwr, 2)) + '</b></div></div>' +
+          (isPilot()
+            ? '<div class="kv"><div><span>' + icon('sleep', 'icon-sm') + 'Сон</span><b>' + D.fmtHours(s.sleep) + '</b></div><div><span>' + icon('load', 'icon-sm') + 'Нагрузка вчера</span><b>' + (a.days[idx - 1] && a.days[idx - 1].load != null ? num(a.days[idx - 1].load) + ' у.е.' : '—') + '</b></div><div><span>' + icon('activity', 'icon-sm') + 'Самооценка</span><b>' + (s.well && s.well.readiness != null ? s.well.readiness + ' / 10' : '—') + '</b></div><div><span>' + icon('chart', 'icon-sm') + 'ACWR</span><b>' + (s.acwr == null ? '—' : num(s.acwr, 2)) + '</b></div></div>'
+            : '<div class="kv"><div><span>' + icon('sleep', 'icon-sm') + 'Сон</span><b>' + D.fmtHours(s.sleep) + '</b></div><div><span>' + icon('heart', 'icon-sm') + 'HRV</span><b>' + (s.hrv == null ? '—' : num(s.hrv) + ' мс') + '</b></div><div><span>' + icon('activity', 'icon-sm') + 'Пульс покоя</span><b>' + (s.rhr == null ? '—' : s.rhr + ' уд/мин') + '</b></div><div><span>' + icon('load', 'icon-sm') + 'ACWR</span><b>' + (s.acwr == null ? '—' : num(s.acwr, 2)) + '</b></div></div>') +
           '<div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="font-size:14.5px">Утренний чек-ин</b><p class="muted" style="margin:2px 0 0;font-size:13px">Самочувствие, сон и вчерашняя тренировка — обновляет прогноз модели. Не является психологической диагностикой.</p></div><button class="btn btn-primary btn-sm" type="button" data-action="checkin" data-id="' + a.id + '">' + icon('brain', 'icon-sm') + 'Пройти чек-ин</button></div>' +
           '<div class="journal" style="margin-top:10px"><b style="font-size:13.5px;display:block;margin-bottom:4px">Последние наблюдения</b>' + (obs || '<p class="muted" style="margin:6px 0 0;font-size:13.5px">Чек-ин ещё не заполнен.</p>') + '</div></div>' +
         '</div></section>' +
@@ -945,8 +1029,11 @@
         '<section class="panel"><div class="panel-head"><div><h2>Почему такой риск травмы</h2><p>Вклад факторов за последние 7 дней</p></div><a class="btn btn-ghost btn-sm" href="#/analytics">Планировщик ' + icon('arrow', 'icon-sm') + '</a></div><div class="panel-body">' + injuryFactorsHtml(a, 6) + '</div></section>' +
       '</div>' +
       '<div class="grid g-2">' +
-        '<section class="panel"><div class="panel-head"><div><h2>HRV и личная норма</h2><p>30 дней · ночной rMSSD, мс</p></div></div><div class="panel-body">' +
-          lineChart({ labels: days.map(function (d) { return d.date; }), label: 'HRV и личная норма', series: [{ name: 'HRV', color: 'var(--violet)', values: days.map(function (d) { return d.hrv; }), area: true, unit: ' мс' }, { name: 'Личная норма', color: 'var(--orange)', values: days.map(function (d) { return d.hrvBase; }), dash: true, unit: ' мс' }], height: 200 }) + '</div></section>' +
+        (isPilot()
+          ? '<section class="panel"><div class="panel-head"><div><h2>Самооценка готовности</h2><p>30 дней · утренний чек-ин, 0–10</p></div></div><div class="panel-body">' +
+            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Самооценка готовности за 30 дней', series: [{ name: 'Готовность, 0–10', color: 'var(--violet)', values: days.map(function (d) { return d.well && d.well.readiness != null ? d.well.readiness : null; }), area: true }], height: 200, min: 0, max: 10 }) + '</div></section>'
+          : '<section class="panel"><div class="panel-head"><div><h2>HRV и личная норма</h2><p>30 дней · ночной rMSSD, мс</p></div></div><div class="panel-body">' +
+            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'HRV и личная норма', series: [{ name: 'HRV', color: 'var(--violet)', values: days.map(function (d) { return d.hrv; }), area: true, unit: ' мс' }, { name: 'Личная норма', color: 'var(--orange)', values: days.map(function (d) { return d.hrvBase; }), dash: true, unit: ' мс' }], height: 200 }) + '</div></section>') +
         '<section class="panel"><div class="panel-head"><div><h2>Сон и нагрузка</h2><p>30 дней · часы сна и нагрузка (sRPE, у.е. ÷ 100; 0 — день отдыха)</p></div></div><div class="panel-body">' +
           lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Сон и нагрузка', series: [{ name: 'Сон, ч', color: 'var(--mint)', values: days.map(function (d) { return d.sleep; }), dec: 1, unit: ' ч' }, { name: 'Нагрузка', color: 'var(--orange)', values: days.map(function (d) { return d.load == null ? null : Math.round(d.load / 10) / 10; }), dash: true, dec: 1 }], height: 200, min: 0 }) + '</div></section>' +
       '</div>' +
@@ -1145,7 +1232,20 @@
     var sources = [['G', 'Garmin', 'Health API · сон, HRV, нагрузка'], ['AH', 'Apple Health', 'HealthKit через приложение спортсмена'], ['P', 'Polar', 'AccessLink · тренировки и пульс'], ['O', 'Oura Ring', 'Сон и восстановление'], ['W', 'Whoop', 'Восстановление и нагрузка'], ['Lab', 'Лабораторная система', 'Импорт результатов анализов'], ['AS', 'Браслет AI Sports', 'Собственное устройство платформы']];
     var M = [['Готовность и восстановление', 'y', 'y', 'y', 'n'], ['Данные носимых устройств', 'y', 'y', 'y', 'n'], ['Лабораторные анализы', 'y', 'n', 'n', 'n'], ['Журнал травм и болезней', 'y', 'p', 'n', 'n'], ['Ответы чек-ина (детально)', 'n', 'n', 'y', 'n'], ['Статус чек-ина (обобщённо)', 'y', 'p', 'y', 'n'], ['Пользователи, согласия, аудит', 'n', 'n', 'n', 'y']];
     function cell(v) { return v === 'y' ? '<td class="y">' + icon('check', 'icon-sm') + '<span class="sr-only">Да</span></td>' : v === 'p' ? '<td class="p">с согласия</td>' : '<td class="n">—<span class="sr-only">Нет</span></td>'; }
+    var wsPanel = '<section class="panel"><div class="panel-head"><div><h2>Моя команда</h2><p>' + (pilot ? '«' + esc(pilot.team.name) + '» · данные хранятся только на этом устройстве' : 'Рабочее пространство пилота для реальной команды') + '</p></div>' + (pilot ? '<span class="badge ice plain">' + icon('users', 'icon-sm') + (isPilot() ? 'Активно' : 'Создано') + '</span>' : '') + '</div><div class="panel-body">' +
+      (pilot
+        ? '<div class="kv" style="margin-bottom:14px"><div><span>Спортсменов</span><b>' + pilot.athletes.length + '</b></div><div><span>Записей</span><b>' + num(pilotRecordCount()) + '</b></div></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+          (!isPilot() ? '<button class="btn btn-primary btn-sm" type="button" data-ws-go="pilot">' + icon('users', 'icon-sm') + 'Переключиться на команду</button>' : '<button class="btn btn-ghost btn-sm" type="button" data-ws-go="demo">' + icon('spark', 'icon-sm') + 'Перейти в демо</button>') +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="pilot-import">' + icon('upload', 'icon-sm') + 'Импорт истории</button>' +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="pilot-backup">' + icon('download', 'icon-sm') + 'Резервная копия</button>' +
+          '<button class="btn btn-danger btn-sm" type="button" data-action="pilot-clear">' + icon('trash', 'icon-sm') + 'Удалить пространство</button></div>' +
+          '<div class="note" style="margin-top:14px">' + icon('shield', 'icon-sm') + '<span>Делайте зашифрованную копию хотя бы раз в неделю: при очистке данных браузера записи исчезнут. Рекомендуем коды вместо фамилий спортсменов.</span></div>'
+        : '<p class="muted" style="margin:0 0 14px;font-size:13.5px">Реальный состав, ежедневные чек-ины и нагрузка, прогнозы моделей и зашифрованные резервные копии. Всё хранится на этом устройстве и не отправляется на сервер.</p>' +
+          '<button class="btn btn-primary" type="button" data-action="pilot-create">' + icon('plus', 'icon-sm') + 'Создать «Мою команду»</button>') +
+      '</div></section>';
     return pageHead('settings') +
+      wsPanel +
       '<div class="grid g-2" style="align-items:start">' +
         '<section class="panel"><div class="panel-head"><div><h2>Рабочее пространство</h2><p>Демонстрационный кабинет спортивного врача</p></div></div><div class="panel-body">' +
           '<div class="setting"><div><b>Тема оформления</b><span class="d">Тёмная, светлая или как в системе</span></div>' + themeSeg + '</div>' +
@@ -1222,6 +1322,7 @@
       ['Что значит «Риск травмы · 7 дн.»?', 'Оценка вероятности травмы в ближайшую неделю по модели, обученной на открытых данных 74 спортсменов. Рядом — кратность к среднему уровню (например, ×1,6). Это повод для внимания специалиста, а не диагноз.'],
       ['Как работает планировщик нагрузки?', 'В разделе «AI-аналитика» задайте нагрузку и интенсивность на ближайшие 3 дня — модель пересчитает риск травмы и сравнит с обычным режимом.'],
       ['Почему я не вижу анализы?', 'Лабораторные показатели — медицинская тайна и доступны роли «Спортивный врач». Смените роль в меню профиля справа вверху или в настройках.'],
+      ['Как вести реальную команду, а не демо?', 'Нажмите на карточку команды слева вверху и создайте «Мою команду»: реальный состав, утренние чек-ины, нагрузка дня и импорт истории из CSV. Все данные хранятся только на этом устройстве — настройте зашифрованную резервную копию в настройках.'],
       ['Что умеет администратор?', 'Роль «Администратор» управляет пользователями и их ролями, согласиями спортсменов и видит журнал аудита, но не имеет доступа к медицинским данным. Переключитесь на неё в меню профиля и откройте раздел «Администрирование».'],
       ['Где хранятся мои действия в демо?', 'Добавленные спортсмены, чек-ины, решения и настройки сохраняются только в вашем браузере (localStorage) и никуда не отправляются. Их можно удалить в настройках кнопкой «Сбросить».'],
       ['Как выгрузить отчёт?', 'Нажмите «Создать отчёт» в любом разделе или откройте раздел «Отчёты». Файл CSV формируется прямо в браузере и открывается в Excel.']
@@ -1241,6 +1342,290 @@
         '</div>' +
       '</div>' + footerStrip();
   };
+
+  /* ======================= Рабочее пространство «Моя команда» ======================= */
+  var SPORTS = ['Футбол', 'Водное поло', 'Баскетбол', 'Волейбол', 'Хоккей', 'Бег', 'Плавание', 'Бокс', 'Дзюдо', 'Другой'];
+  function wsLabel() { return isPilot() ? (pilot.team.name || 'Моя команда') : 'Демо-команда'; }
+  function todayISO() { return model.isoOf(asOfDate()); }
+
+  function workspacePopover(btn) {
+    var html = '<h3>Рабочее пространство</h3>' +
+      '<button class="menu-item" type="button" role="menuitemradio" aria-checked="' + (!isPilot()) + '" data-ws="demo"><span class="ws-ic">' + icon('spark', 'icon-sm') + '</span><span><b style="font-weight:600">Демо-команда</b><span class="sub">24 вымышленных спортсмена</span></span>' + (!isPilot() ? icon('check', 'icon-sm tick') : '') + '</button>' +
+      (pilot ?
+        '<button class="menu-item" type="button" role="menuitemradio" aria-checked="' + isPilot() + '" data-ws="pilot"><span class="ws-ic i">' + icon('users', 'icon-sm') + '</span><span><b style="font-weight:600">' + esc(pilot.team.name) + '</b><span class="sub">' + pilot.athletes.length + ' ' + plural(pilot.athletes.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' · данные на этом устройстве</span></span>' + (isPilot() ? icon('check', 'icon-sm tick') : '') + '</button>' :
+        '<button class="menu-item" type="button" data-ws-create><span class="ws-ic i">' + icon('plus', 'icon-sm') + '</span><span><b style="font-weight:600">Создать «Мою команду»</b><span class="sub">Реальный состав и данные пилота — без сервера</span></span></button>') +
+      (pilot ? '<div class="menu-sep"></div><button class="menu-item" type="button" data-ws-backup>' + icon('download', 'icon-sm') + 'Резервная копия…</button>' : '');
+    openPopover(btn, html, {
+      alignLeft: true,
+      mount: function (p) {
+        p.addEventListener('click', function (e) {
+          var w = e.target.closest('[data-ws]');
+          if (w) {
+            var to = w.getAttribute('data-ws');
+            if ((to === 'pilot') !== isPilot()) {
+              state.ws = to; save();
+              logEvent('system', 'Переключение рабочего пространства: ' + (to === 'pilot' ? '«' + pilot.team.name + '»' : 'демо-команда'));
+              rebuild(); closePopover(); render();
+              toast(to === 'pilot' ? 'Рабочее пространство: ' + pilot.team.name : 'Рабочее пространство: демо-команда');
+            } else closePopover();
+            return;
+          }
+          if (e.target.closest('[data-ws-create]')) { closePopover(); setupPilotModal(); }
+          if (e.target.closest('[data-ws-backup]')) { closePopover(); backupModal(); }
+        });
+      }
+    });
+  }
+
+  function parseRoster(text) {
+    var POSMAP = { 'вратарь': 'gk', 'защитник': 'df', 'полузащитник': 'mf', 'нападающий': 'fw' };
+    var out = [], errs = [];
+    text.split(/\n/).forEach(function (line) {
+      line = line.trim();
+      if (!line) return;
+      var parts = line.split(';').map(function (x) { return x.replace(/\s+/g, ' ').trim(); });
+      var name = parts[0];
+      if (name.length < 2 || name.length > 60) { errs.push(line); return; }
+      var pos = POSMAP[(parts[1] || '').toLowerCase()] || '';
+      var num = parts[2] && /^\d{1,2}$/.test(parts[2]) ? Number(parts[2]) : null;
+      out.push({ name: name, pos: pos, num: num });
+    });
+    return { list: out.slice(0, 60), errs: errs };
+  }
+  function setupPilotModal() {
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('users') + '</span><div><h2 id="modal-title">Моя команда</h2><p>Рабочее пространство пилота. Все данные остаются на этом устройстве.</p></div></div>' +
+      '<form class="modal-body" id="pw-form" novalidate>' +
+      '<div class="grid g-2" style="gap:12px"><div class="field"><label for="pw-name">Название команды <span class="req" aria-hidden="true">*</span></label><input class="input" id="pw-name" maxlength="60" autocomplete="off" placeholder="Например, Сборная — основной состав" required aria-describedby="pw-err"><span class="err" id="pw-err"></span></div>' +
+      '<div class="field"><label for="pw-sport">Вид спорта</label><select class="select" id="pw-sport">' + SPORTS.map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="field"><label for="pw-roster">Состав — один спортсмен в строке <span class="req" aria-hidden="true">*</span></label>' +
+      '<textarea class="textarea" id="pw-roster" rows="6" placeholder="Спортсмен-01; нападающий; 7&#10;Спортсмен-02; вратарь; 1&#10;Спортсмен-03" aria-describedby="pw-roster-err"></textarea><span class="err" id="pw-roster-err"></span>' +
+      '<span class="muted" style="font-size:12.5px">Формат: «код или имя; позиция; номер» — позиция и номер необязательны. Рекомендуем коды вместо фамилий: так в системе не будет лишних персональных данных.</span></div>' +
+      '<div class="note">' + icon('shield', 'icon-sm') + '<span>Данные команды хранятся только в этом браузере и не отправляются никому, включая нас. Регулярно делайте резервную копию (Настройки → Моя команда). Платформа не является медицинским изделием.</span></div>' +
+      '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Создать рабочее пространство</button></div></form>', {
+      mount: function (m) {
+        m.querySelector('#pw-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var nameEl = m.querySelector('#pw-name');
+          var name = nameEl.value.replace(/\s+/g, ' ').trim();
+          var ok = true;
+          if (name.length < 2) { nameEl.setAttribute('aria-invalid', 'true'); m.querySelector('#pw-err').textContent = 'Укажите название'; ok = false; } else { nameEl.removeAttribute('aria-invalid'); m.querySelector('#pw-err').textContent = ''; }
+          var r = parseRoster(m.querySelector('#pw-roster').value);
+          if (!r.list.length) { m.querySelector('#pw-roster-err').textContent = 'Добавьте хотя бы одного спортсмена'; ok = false; } else { m.querySelector('#pw-roster-err').textContent = r.errs.length ? 'Пропущены строки: ' + r.errs.slice(0, 3).join(' · ') : ''; }
+          if (!ok) return;
+          var used = {};
+          pilot = { v: 1, team: { name: name, sport: m.querySelector('#pw-sport').value, created: Date.now() }, athletes: r.list.map(function (x, i) {
+            var num = x.num;
+            if (num == null || used[num]) { num = 1; while (used[num]) num++; }
+            used[num] = 1;
+            return { id: 'p' + (i + 1).toString(36) + Date.now().toString(36).slice(-4), name: x.name, pos: x.pos, num: num };
+          }), records: {} };
+          savePilot();
+          state.ws = 'pilot'; save();
+          logEvent('system', 'Создано рабочее пространство «' + name + '» · ' + pilot.athletes.length + ' спортсменов');
+          rebuild(); closeModal(); go('overview'); render();
+          toast('Рабочее пространство создано. Начните с чек-ина или импорта истории.');
+        });
+      }
+    });
+  }
+
+  /* ---------- Групповой ввод нагрузки за день ---------- */
+  function teamLoadModal() {
+    if (!isPilot()) return;
+    var iso = todayISO();
+    openModal('<div class="modal-head"><span class="mi">' + icon('load') + '</span><div><h2 id="modal-title">Нагрузка за ' + fmtFull.format(asOfDate()) + '</h2><p>sRPE = тяжесть (0–10) × минуты. Пустая строка — без изменений, 0 и 0 — день отдыха.</p></div></div>' +
+      '<form class="modal-body" id="tl-form"><div class="tl-grid" role="group" aria-label="Нагрузка по спортсменам">' +
+      '<div class="tl-head"><span>Спортсмен</span><span>RPE 0–10</span><span>Минуты</span><span>sRPE</span></div>' +
+      model.athletes.map(function (a) {
+        var r = (pilot.records[a.id] || {})[iso] || {};
+        return '<div class="tl-row"><label for="tl-r-' + a.id + '">' + esc(a.short) + '</label>' +
+          '<input class="input" id="tl-r-' + a.id + '" data-tl-rpe="' + a.id + '" type="text" inputmode="numeric" maxlength="2" autocomplete="off" value="' + (r.rpe != null ? r.rpe : '') + '" aria-label="RPE: ' + esc(a.short) + '">' +
+          '<input class="input" data-tl-min="' + a.id + '" type="text" inputmode="numeric" maxlength="3" autocomplete="off" value="' + (r.srpe != null && r.rpe ? Math.round(r.srpe / r.rpe) : (r.srpe === 0 ? 0 : '')) + '" aria-label="Минуты: ' + esc(a.short) + '">' +
+          '<output data-tl-out="' + a.id + '" class="num muted">' + (r.srpe != null ? num(r.srpe) : '—') + '</output></div>';
+      }).join('') + '</div>' +
+      '<span class="err" id="tl-err" role="alert"></span>' +
+      '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Сохранить нагрузку</button></div></form>', {
+      cls: 'wide',
+      mount: function (m) {
+        function upd(id) {
+          var rp = m.querySelector('[data-tl-rpe="' + id + '"]').value.trim(), mn = m.querySelector('[data-tl-min="' + id + '"]').value.trim();
+          var out = m.querySelector('[data-tl-out="' + id + '"]');
+          out.textContent = (rp !== '' && mn !== '') ? num(Number(rp) * Number(mn)) : '—';
+        }
+        m.querySelectorAll('[data-tl-rpe],[data-tl-min]').forEach(function (el) {
+          el.addEventListener('input', function () { upd(el.getAttribute('data-tl-rpe') || el.getAttribute('data-tl-min')); });
+        });
+        m.querySelector('#tl-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var saved = 0, err = '';
+          model.athletes.forEach(function (a) {
+            var rp = m.querySelector('[data-tl-rpe="' + a.id + '"]').value.trim(), mn = m.querySelector('[data-tl-min="' + a.id + '"]').value.trim();
+            if (rp === '' && mn === '') return;
+            var R = Number(rp.replace(',', '.')), M = Number(mn.replace(',', '.'));
+            if (!(R >= 0 && R <= 10) || !(M >= 0 && M <= 600) || rp === '' || mn === '') { err = 'Проверьте строку «' + a.short + '»: RPE 0–10 и минуты 0–600'; return; }
+            var rec = pilotRec(a.id, iso);
+            rec.srpe = Math.round(R * M);
+            rec.rpe = M === 0 ? 0 : R;
+            rec.sessions = M > 0 ? Math.max(1, rec.sessions || 0) : 0;
+            saved++;
+          });
+          if (err) { m.querySelector('#tl-err').textContent = err; return; }
+          if (!saved) { m.querySelector('#tl-err').textContent = 'Заполните хотя бы одну строку'; return; }
+          savePilot();
+          logEvent('data', 'Внесена нагрузка за ' + iso + ': ' + saved + ' ' + plural(saved, 'спортсмен', 'спортсмена', 'спортсменов'));
+          rebuild(); closeModal(); render();
+          toast('Нагрузка сохранена: ' + saved + ' ' + plural(saved, 'запись', 'записи', 'записей'));
+        });
+      }
+    });
+  }
+
+  /* ---------- Импорт истории CSV в «Мою команду» ---------- */
+  function importHistoryModal() {
+    if (!isPilot()) return;
+    openModal('<div class="modal-head"><span class="mi">' + icon('upload') + '</span><div><h2 id="modal-title">Импорт истории</h2><p>CSV-журнал нагрузки и чек-инов — в профили спортсменов. Обрабатывается только в браузере.</p></div></div>' +
+      '<div class="modal-body">' +
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Формат тот же, что в разделе «Модели ИИ» (колонки athlete, date, srpe …). Имена в колонке athlete должны совпадать с именами в составе — несовпавшие можно создать автоматически. Существующие записи за те же даты будут дополнены.</span></div>' +
+      '<label class="check"><input type="checkbox" id="ih-create" checked> Создавать спортсменов, которых нет в составе</label>' +
+      '<div class="import-row"><label class="btn btn-primary" for="ih-file">' + icon('upload', 'icon-sm') + 'Выбрать CSV-файл<input type="file" id="ih-file" accept=".csv,text/csv" class="sr-only"></label><button class="btn btn-ghost" type="button" data-action="csv-template">' + icon('download', 'icon-sm') + 'Шаблон</button></div>' +
+      '<div id="ih-out" aria-live="polite"></div></div>', {
+      mount: function (m) {
+        m.querySelector('#ih-file').addEventListener('change', function () {
+          var f = this.files && this.files[0];
+          if (!f) return;
+          if (f.size > 5 * 1024 * 1024) { m.querySelector('#ih-out').innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Файл больше 5 МБ.</span></div>'; return; }
+          var rd = new FileReader();
+          rd.onload = function () {
+            try {
+              var res = importHistory(String(rd.result || ''), m.querySelector('#ih-create').checked);
+              m.querySelector('#ih-out').innerHTML = '<div class="note ok-note">' + icon('check', 'icon-sm') + '<span><b>' + esc(f.name) + '</b>: записей добавлено или обновлено — ' + res.saved + ', спортсменов создано — ' + res.created + (res.unmatched.length ? '. Пропущены (нет в составе): ' + esc(res.unmatched.slice(0, 4).join(', ')) + (res.unmatched.length > 4 ? '…' : '') : '') + (res.skipped ? '. Строк с ошибками: ' + res.skipped : '') + '</span></div>' +
+                '<button class="btn btn-primary btn-block" type="button" data-close style="margin-top:12px">Готово — открыть команду</button>';
+              logEvent('data', 'Импорт истории CSV: ' + f.name + ' · ' + res.saved + ' записей');
+              rebuild(); render();
+            } catch (err) {
+              m.querySelector('#ih-out').innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span><b>Не удалось прочитать файл.</b> ' + esc(err.message || String(err)) + '</span></div>';
+            }
+          };
+          rd.readAsText(f, 'utf-8');
+          this.value = '';
+        });
+      }
+    });
+  }
+  function importHistory(text, createMissing) {
+    var parsed = parseCSV(text);
+    if (parsed.rows.length > 200000) throw new Error('Слишком много строк (> 200 000)');
+    var byName = {};
+    pilot.athletes.forEach(function (a) { byName[a.name.toLowerCase()] = a; });
+    var saved = 0, created = 0, skipped = 0, unmatched = {};
+    parsed.rows.forEach(function (r) {
+      var nm = String(r.athlete || '').replace(/\s+/g, ' ').trim();
+      var dt = toDate(r.date);
+      if (!nm || dt !== dt) { skipped++; return; }
+      var a = byName[nm.toLowerCase()];
+      if (!a) {
+        if (!createMissing || pilot.athletes.length >= 60) { unmatched[nm] = 1; return; }
+        a = { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: nm, pos: '', num: null };
+        var used = {}; pilot.athletes.forEach(function (x) { used[x.num] = 1; });
+        var n2 = 1; while (used[n2]) n2++;
+        a.num = n2;
+        pilot.athletes.push(a); byName[nm.toLowerCase()] = a; created++;
+      }
+      var d = new Date(dt);
+      var iso = d.toISOString().slice(0, 10);
+      var rec = pilotRec(a.id, iso), any = false;
+      function setN(key, v, lo, hi) { var x = toNum(v); if (x === x && x >= lo && x <= hi) { rec[key] = x; any = true; } }
+      setN('srpe', r.srpe, 0, 3000); setN('hi', r.hi_load, 0, 3000);
+      setN('sessions', r.sessions, 0, 6); setN('strength', r.strength, 0, 4);
+      setN('rpe', r.rpe, 0, 10); setN('readiness', r.readiness, 0, 10);
+      setN('fatigue', r.fatigue, 1, 5); setN('soreness', r.soreness, 1, 5);
+      setN('sleep_quality', r.sleep_quality, 1, 5); setN('stress', r.stress, 1, 5);
+      setN('mood', r.mood, 1, 5); setN('sleep_hours', r.sleep_hours, 0, 16);
+      if (any) saved++; else skipped++;
+    });
+    savePilot();
+    return { saved: saved, created: created, skipped: skipped, unmatched: Object.keys(unmatched) };
+  }
+
+  /* ---------- Резервные копии (с шифрованием по желанию) ---------- */
+  function b64(buf) { var b = ''; new Uint8Array(buf).forEach(function (x) { b += String.fromCharCode(x); }); return btoa(b); }
+  function unb64(str) { var bin = atob(str), out = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
+  function deriveKey(pass, salt, usages) {
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']).then(function (km) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 310000, hash: 'SHA-256' }, km, { name: 'AES-GCM', length: 256 }, false, usages);
+    });
+  }
+  function saveFile(text, name) {
+    var blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob), el = document.createElement('a');
+    el.href = url; el.download = name; document.body.appendChild(el); el.click(); el.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+  function backupModal() {
+    if (!pilot) { setupPilotModal(); return; }
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('shield') + '</span><div><h2 id="modal-title">Резервная копия</h2><p>«' + esc(pilot.team.name) + '» · ' + pilot.athletes.length + ' ' + plural(pilot.athletes.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' · ' + num(pilotRecordCount()) + ' ' + plural(pilotRecordCount(), 'запись', 'записи', 'записей') + '</p></div></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="bk-pass">Пароль шифрования (рекомендуем)</label><input class="input" id="bk-pass" type="password" autocomplete="new-password" placeholder="Пусто — копия без шифрования"><span class="muted" style="font-size:12.5px">AES-256-GCM, ключ из пароля (PBKDF2, 310 000 итераций). Пароль не восстановить — храните его отдельно.</span></div>' +
+      '<button class="btn btn-primary btn-block" type="button" id="bk-save">' + icon('download', 'icon-sm') + 'Скачать копию</button>' +
+      '<div class="menu-sep" style="margin:4px 0"></div>' +
+      '<div class="field"><label for="bk-restore-pass">Восстановление из файла</label><input class="input" id="bk-restore-pass" type="password" autocomplete="off" placeholder="Пароль копии, если она зашифрована" style="margin-bottom:8px">' +
+      '<label class="btn btn-ghost btn-block" for="bk-file">' + icon('upload', 'icon-sm') + 'Выбрать файл копии<input type="file" id="bk-file" accept=".json,application/json" class="sr-only"></label></div>' +
+      '<div id="bk-out" aria-live="polite"></div>' +
+      '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Восстановление заменит текущие данные «Моей команды». Данные демо-команды не затрагиваются.</span></div></div>', {
+      mount: function (m) {
+        m.querySelector('#bk-save').addEventListener('click', function () {
+          var pass = m.querySelector('#bk-pass').value;
+          var payload = { app: 'ai-sports-pilot', v: 1, exportedAt: new Date().toISOString(), team: pilot.team, athletes: pilot.athletes, records: pilot.records };
+          var fname = 'ai-sports_' + (pilot.team.name || 'team').toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').slice(0, 24) + '_' + new Date().toISOString().slice(0, 10);
+          if (!pass) {
+            saveFile(JSON.stringify(payload), fname + '.json');
+            logEvent('system', 'Создана резервная копия (без шифрования)');
+            toast('Копия скачана — без шифрования');
+            return;
+          }
+          var salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+          deriveKey(pass, salt, ['encrypt']).then(function (key) {
+            return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
+          }).then(function (ct) {
+            saveFile(JSON.stringify({ app: 'ai-sports-pilot', v: 1, enc: 'AES-GCM', kdf: 'PBKDF2-SHA256', it: 310000, salt: b64(salt), iv: b64(iv), data: b64(ct) }), fname + '.enc.json');
+            logEvent('system', 'Создана зашифрованная резервная копия');
+            toast('Зашифрованная копия скачана');
+          }).catch(function () { m.querySelector('#bk-out').innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Шифрование недоступно в этом браузере. Попробуйте без пароля.</span></div>'; });
+        });
+        m.querySelector('#bk-file').addEventListener('change', function () {
+          var f = this.files && this.files[0], out = m.querySelector('#bk-out');
+          if (!f) return;
+          var rd = new FileReader();
+          rd.onload = function () {
+            var obj;
+            try { obj = JSON.parse(String(rd.result || '')); } catch (e) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Это не файл копии AI Sports.</span></div>'; return; }
+            function apply(payload) {
+              if (!payload || payload.app !== 'ai-sports-pilot' || !payload.team || !Array.isArray(payload.athletes) || !payload.records) {
+                out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Файл не похож на копию «Моей команды».</span></div>';
+                return;
+              }
+              pilot = { v: 1, team: payload.team, athletes: payload.athletes.slice(0, 60), records: payload.records };
+              savePilot();
+              state.ws = 'pilot'; save();
+              logEvent('system', 'Восстановление из резервной копии: «' + payload.team.name + '»');
+              rebuild(); closeModal(); render();
+              toast('Данные восстановлены: ' + payload.team.name);
+            }
+            if (obj.enc === 'AES-GCM') {
+              var pass = m.querySelector('#bk-restore-pass').value;
+              if (!pass) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Копия зашифрована — введите пароль выше и выберите файл ещё раз.</span></div>'; return; }
+              deriveKey(pass, unb64(obj.salt), ['decrypt']).then(function (key) {
+                return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.iv) }, key, unb64(obj.data));
+              }).then(function (pt) { apply(JSON.parse(new TextDecoder().decode(pt))); })
+                .catch(function () { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Не удалось расшифровать: проверьте пароль.</span></div>'; });
+            } else apply(obj);
+          };
+          rd.readAsText(f, 'utf-8');
+          this.value = '';
+        });
+      }
+    });
+  }
 
   /* ======================= Администрирование ======================= */
   var CONSENT_KEYS = [
@@ -1455,9 +1840,9 @@
           '<div class="note">' + icon('check', 'icon-sm') + '<span>Отклонений от личной нормы не обнаружено.</span></div>') +
         (s.status !== 'nodata' ? lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Готовность и восстановление за 14 дней', series: [{ name: 'Готовность', color: 'var(--violet)', values: days.map(function (d) { return d.readiness; }), area: true }, { name: 'Восстановление', color: 'var(--mint)', values: days.map(function (d) { return d.recovery; }), dash: true }], height: 190, min: 20, max: 100 }) : '') +
         (s.inj ? '<div><b style="font-size:13.5px;display:block;margin-bottom:8px">Главные факторы риска</b>' + injuryFactorsHtml(a, 3) + '</div>' : '') +
-        '<div class="note">' + icon('shield', 'icon-sm') + '<span>Вымышленный профиль. Прогнозы считают обученные модели; они не относятся к реальному человеку и не являются диагнозом.</span></div>' +
+        '<div class="note">' + icon('shield', 'icon-sm') + '<span>' + (a.pilot ? 'Профиль «Моей команды»: данные хранятся только на этом устройстве. Прогнозы моделей не являются диагнозом.' : 'Вымышленный профиль. Прогнозы считают обученные модели; они не относятся к реальному человеку и не являются диагнозом.') + '</span></div>' +
       '</div>' +
-      '<div class="drawer-foot">' + (a.custom ? '<button class="btn btn-danger" type="button" data-remove="' + a.id + '">' + icon('trash', 'icon-sm') + 'Удалить</button>' : '<a class="btn btn-ghost" href="#/medical/' + a.id + '">' + icon('flask', 'icon-sm') + 'Медданные</a>') +
+      '<div class="drawer-foot">' + (a.custom || a.pilot ? '<button class="btn btn-danger" type="button" data-remove="' + a.id + '">' + icon('trash', 'icon-sm') + 'Удалить</button>' : '<a class="btn btn-ghost" href="#/medical/' + a.id + '">' + icon('flask', 'icon-sm') + 'Медданные</a>') +
         '<a class="btn btn-primary" href="#/twin/' + a.id + '">Цифровой двойник ' + icon('arrow', 'icon-sm') + '</a></div></aside>';
     var root = document.createElement('div');
     root.id = 'drawer-root';
@@ -1473,10 +1858,17 @@
       if (rm) {
         var rid = rm.getAttribute('data-remove');
         var rmA = byId(rid);
-        state.custom = state.custom.filter(function (c) { return c.id !== rid; });
-        delete state.checkins[rid];
-        logEvent('athlete', 'Удалён демо-профиль спортсмена' + (rmA ? ': ' + rmA.short : ''));
-        save(); rebuild(); closeDrawer(); render(); toast('Профиль удалён из демо-состава');
+        if (isPilot()) {
+          pilot.athletes = pilot.athletes.filter(function (c) { return c.id !== rid; });
+          delete pilot.records[rid];
+          savePilot();
+          logEvent('athlete', 'Спортсмен и его записи удалены из состава' + (rmA ? ': ' + rmA.short : ''));
+        } else {
+          state.custom = state.custom.filter(function (c) { return c.id !== rid; });
+          delete state.checkins[rid];
+          logEvent('athlete', 'Удалён демо-профиль спортсмена' + (rmA ? ': ' + rmA.short : ''));
+        }
+        save(); rebuild(); closeDrawer(); render(); toast(isPilot() ? 'Спортсмен удалён из состава' : 'Профиль удалён из демо-состава');
       }
     });
     setTimeout(function () { var b = dr.querySelector('.drawer-head .icon-btn'); if (b) b.focus(); }, 30);
@@ -1501,12 +1893,12 @@
   function addAthleteModal() {
     var used = model.athletes.map(function (a) { return Number(a.num); });
     var next = 1; while (used.indexOf(next) > -1) next++;
-    openModal('<div class="modal-head"><span class="mi">' + icon('users') + '</span><div><h2 id="modal-title">Новый спортсмен</h2><p>Добавьте спортсмена в демонстрационный состав</p></div></div>' +
+    openModal('<div class="modal-head"><span class="mi">' + icon('users') + '</span><div><h2 id="modal-title">Новый спортсмен</h2><p>' + (isPilot() ? 'Добавьте спортсмена в состав «' + esc(pilot.team.name) + '»' : 'Добавьте спортсмена в демонстрационный состав') + '</p></div></div>' +
       '<form class="modal-body" id="add-form" novalidate>' +
         '<div class="field"><label for="add-name">Имя и фамилия <span class="req" aria-hidden="true">*</span></label><input class="input" id="add-name" maxlength="60" placeholder="Например, Алексей Иванов" autocomplete="off" aria-describedby="add-err" required><span class="err" id="add-err"></span></div>' +
         '<div class="grid g-2" style="gap:12px"><div class="field"><label for="add-pos">Амплуа</label><select class="select" id="add-pos"><option value="fw">Нападающий</option><option value="cf">Центральный нападающий</option><option value="df">Защитник</option><option value="gk">Вратарь</option></select></div>' +
         '<div class="field"><label for="add-num">Игровой номер</label><input class="input" id="add-num" type="number" min="1" max="99" value="' + next + '" aria-describedby="num-err"><span class="err" id="num-err"></span></div></div>' +
-        '<div class="note">' + icon('info', 'icon-sm') + '<span>Не вводите реальные персональные или медицинские данные. Новому профилю не присваиваются прогнозы без измерений. Профиль хранится только в вашем браузере.</span></div>' +
+        '<div class="note">' + icon('info', 'icon-sm') + '<span>' + (isPilot() ? 'Рекомендуем код вместо фамилии. Данные хранятся только на этом устройстве.' : 'Не вводите реальные персональные или медицинские данные. Новому профилю не присваиваются прогнозы без измерений. Профиль хранится только в вашем браузере.') + '</span></div>' +
         '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('plus', 'icon-sm') + 'Добавить спортсмена</button></div>' +
       '</form>', {
       mount: function (m) {
@@ -1522,9 +1914,15 @@
           else if (used.indexOf(nv) > -1) { n.setAttribute('aria-invalid', 'true'); m.querySelector('#num-err').textContent = 'Номер уже занят'; ok = false; }
           else { n.removeAttribute('aria-invalid'); m.querySelector('#num-err').textContent = ''; }
           if (!ok) { (m.querySelector('[aria-invalid="true"]') || name).focus(); return; }
-          var id = 'c' + Date.now().toString(36);
-          state.custom.push({ id: id, name: val, pos: m.querySelector('#add-pos').value, num: nv });
-          logEvent('athlete', 'Добавлен демо-профиль спортсмена: ' + val);
+          var id = (isPilot() ? 'p' : 'c') + Date.now().toString(36);
+          if (isPilot()) {
+            pilot.athletes.push({ id: id, name: val, pos: m.querySelector('#add-pos').value, num: nv });
+            savePilot();
+            logEvent('athlete', 'Добавлен спортсмен в состав: ' + val);
+          } else {
+            state.custom.push({ id: id, name: val, pos: m.querySelector('#add-pos').value, num: nv });
+            logEvent('athlete', 'Добавлен демо-профиль спортсмена: ' + val);
+          }
           save(); rebuild(); closeModal();
           if (current.page !== 'athletes') go('athletes'); else render();
           toast('Спортсмен добавлен: ' + val);
@@ -1538,7 +1936,7 @@
     var a = byId(id);
     if (!a) return;
     var fields = [['mood', 'Настроение', 'Плохое', 'Отличное', 4], ['stress', 'Уровень стресса', 'Низкий', 'Высокий', 2], ['motivation', 'Мотивация', 'Низкая', 'Высокая', 4], ['sleepq', 'Качество сна', 'Плохое', 'Отличное', 4], ['soreness', 'Мышечная болезненность', 'Нет', 'Сильная', 2], ['fatigue', 'Усталость', 'Нет', 'Сильная', 2]];
-    openModal('<div class="modal-head"><span class="mi">' + icon('brain') + '</span><div><h2 id="modal-title">Как вы себя чувствуете?</h2><p>' + esc(a.short) + ' · ежедневный демо-чек-ин</p></div></div>' +
+    openModal('<div class="modal-head"><span class="mi">' + icon('brain') + '</span><div><h2 id="modal-title">Как вы себя чувствуете?</h2><p>' + esc(a.short) + ' · чек-ин за ' + fmtFull.format(asOfDate()) + (isPilot() ? '' : ' · демо') + '</p></div></div>' +
       '<form class="modal-body" id="ci-form">' +
       '<div class="slider-row"><div class="top"><label for="ci-readiness">Готовность к тренировке сегодня</label><output id="ci-readiness-o" for="ci-readiness">7 / 10</output></div><input class="range" type="range" id="ci-readiness" min="0" max="10" step="1" value="7" aria-valuetext="7 из 10"><div class="ends" aria-hidden="true"><span>Совсем не готов</span><span>Полностью готов</span></div></div>' +
       fields.map(function (f) {
@@ -1576,11 +1974,46 @@
           fields.forEach(function (f) { entry[f[0]] = Number(m.querySelector('#ci-' + f[0]).value); });
           if (sleeph != null) entry.sleeph = sleeph;
           if (dur != null) { entry.dur = dur; entry.rpe = dur === 0 ? 0 : rpe; }
-          state.checkins[a.id] = [entry].concat(state.checkins[a.id] || []).slice(0, 20);
-          logEvent('checkin', 'Заполнен чек-ин: ' + a.short + ' · готовность ' + entry.readiness + '/10');
+          if (isPilot()) {
+            var rec = pilotRec(a.id, todayISO());
+            rec.readiness = entry.readiness; rec.mood = entry.mood;
+            rec.stress = 6 - entry.stress; rec.sleep_quality = entry.sleepq;
+            rec.soreness = 6 - entry.soreness; rec.fatigue = 6 - entry.fatigue;
+            if (entry.note) rec.note = entry.note;
+            if (entry.sleeph != null) rec.sleep_hours = entry.sleeph;
+            if (entry.dur != null) {
+              var yd = new Date(asOfDate()); yd.setDate(yd.getDate() - 1);
+              var yr = pilotRec(a.id, model.isoOf(yd));
+              yr.srpe = Math.round((entry.rpe || 0) * entry.dur);
+              yr.rpe = entry.dur === 0 ? 0 : entry.rpe;
+              yr.sessions = entry.dur > 0 ? Math.max(1, yr.sessions || 0) : 0;
+            }
+            savePilot();
+          } else {
+            state.checkins[a.id] = [entry].concat(state.checkins[a.id] || []).slice(0, 20);
+          }
+          logEvent('checkin', 'Заполнен чек-ин: ' + a.short + ' · готовность ' + entry.readiness + '/10' + (isPilot() ? ' · ' + todayISO() : ''));
           save(); rebuild(); closeModal(); render();
           var s2 = snapOf(byId(a.id));
           toast(s2.fc ? 'Чек-ин сохранён · прогноз на завтра ' + num(s2.fc.value, 1) + ' / 10' : 'Чек-ин сохранён');
+        });
+      }
+    });
+  }
+
+  function confirmPilotClear() {
+    if (!pilot) return;
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--red-soft);color:var(--red)">' + icon('trash') + '</span><div><h2 id="modal-title">Удалить «' + esc(pilot.team.name) + '»?</h2><p>Состав и все ' + num(pilotRecordCount()) + ' записей будут удалены с этого устройства без возможности восстановления. Сначала скачайте резервную копию.</p></div></div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-ghost" type="button" id="pc-backup">' + icon('download', 'icon-sm') + 'Сначала копию</button><button class="btn btn-danger" type="button" id="pc-go">Удалить навсегда</button></div>', {
+      mount: function (m) {
+        m.querySelector('#pc-backup').addEventListener('click', function () { closeModal(); backupModal(); });
+        m.querySelector('#pc-go').addEventListener('click', function () {
+          logEvent('system', 'Удалено рабочее пространство «' + pilot.team.name + '»');
+          pilot = null;
+          try { localStorage.removeItem(PSTORE); } catch (e) { /* noop */ }
+          state.ws = 'demo'; save();
+          rebuild(); closeModal(); render();
+          toast('Рабочее пространство удалено');
         });
       }
     });
@@ -1744,6 +2177,12 @@
       else if (a === 'theme') toggleTheme();
       else if (a === 'cols') colsPopover(act);
       else if (a === 'reset') confirmReset();
+      else if (a === 'workspace') workspacePopover(act);
+      else if (a === 'team-load') teamLoadModal();
+      else if (a === 'pilot-import') importHistoryModal();
+      else if (a === 'pilot-backup') backupModal();
+      else if (a === 'pilot-create') setupPilotModal();
+      else if (a === 'pilot-clear') confirmPilotClear();
       else if (a === 'invite') inviteModal();
       else if (a === 'audit-export') {
         saveCSV([['Время', 'Категория', 'Событие', 'Кто', 'Роль']].concat(allAudit().map(function (e) {
@@ -1787,6 +2226,15 @@
     if (ts) { state.theme = ts.getAttribute('data-theme-set'); save(); applyTheme(); render(); return; }
     var rs = t.closest('[data-role-set]');
     if (rs) { setRole(rs.getAttribute('data-role-set')); return; }
+    var wg = t.closest('[data-ws-go]');
+    if (wg) {
+      var to2 = wg.getAttribute('data-ws-go');
+      state.ws = to2; save();
+      logEvent('system', 'Переключение рабочего пространства: ' + (to2 === 'pilot' ? '«' + pilot.team.name + '»' : 'демо-команда'));
+      rebuild(); render();
+      toast(to2 === 'pilot' ? 'Рабочее пространство: ' + pilot.team.name : 'Рабочее пространство: демо-команда');
+      return;
+    }
     var af = t.closest('[data-audit-f]');
     if (af) { state.auditFilter = af.getAttribute('data-audit-f'); save(); render(); return; }
     var srm = t.closest('[data-staff-remove]');

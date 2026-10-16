@@ -258,6 +258,78 @@
     return a;
   }
 
+  /* ---------- Режим «Моя команда»: спортсмен из реальных записей ---------- */
+  function isoOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  function buildPilotAthlete(p, today, records) {
+    var rec = records[p.id] || {};
+    var dates = Object.keys(rec).sort();
+    var span = DAYS;
+    if (dates.length) {
+      var first = new Date(dates[0] + 'T00:00:00');
+      var diff = Math.round((dayDate(today, 0) - first) / 86400000) + 1;
+      span = clamp(Math.max(DAYS, diff), DAYS, 420);
+    }
+    var days = [];
+    for (var i = span - 1; i >= 0; i--) {
+      var d = dayDate(today, i);
+      var r = rec[isoOf(d)] || null;
+      var hasWell = r && ['readiness', 'fatigue', 'soreness', 'sleep_quality', 'stress', 'mood'].some(function (k) { return r[k] != null; });
+      days.push({
+        date: d,
+        hrv: null, rhr: null, resp: null, temp: null,
+        sleep: r && r.sleep_hours != null ? r.sleep_hours : null,
+        load: r && r.srpe != null ? r.srpe : null,
+        hi: r && r.hi != null ? r.hi : (r && r.srpe === 0 ? 0 : null),
+        rpe: r && r.rpe != null ? r.rpe : null,
+        sessions: r && r.sessions != null ? r.sessions : (r && r.srpe != null ? (r.srpe > 0 ? 1 : 0) : null),
+        strength: r && r.strength != null ? r.strength : (r && r.srpe != null ? 0 : null),
+        well: hasWell ? {
+          readiness: r.readiness != null ? r.readiness : null,
+          fatigue: r.fatigue != null ? r.fatigue : null,
+          soreness: r.soreness != null ? r.soreness : null,
+          sleep_quality: r.sleep_quality != null ? r.sleep_quality : null,
+          stress: r.stress != null ? r.stress : null,
+          mood: r.mood != null ? r.mood : null
+        } : null,
+        noteTxt: r && r.note ? String(r.note).slice(0, 300) : null,
+        userCheckin: !!hasWell
+      });
+    }
+    // производные от нагрузки (ACWR и доля интенсивного считаются по известным дням)
+    for (var k = 0; k < days.length; k++) {
+      var dd = days[k];
+      function windowVals(from, key) {
+        var out = [];
+        for (var j = Math.max(0, k - from + 1); j <= k; j++) { var v = days[j][key]; if (v != null) out.push(v); }
+        return out;
+      }
+      var a7 = windowVals(7, 'load'), a28 = windowVals(28, 'load');
+      dd.known7 = a7.length; dd.known28 = a28.length;
+      dd.acwr = (a7.length >= 4 && a28.length >= 14 && mean(a28) > 0) ? round(mean(a7) / mean(a28), 2) : null;
+      var h7 = windowVals(7, 'hi'), h28 = windowVals(28, 'hi');
+      dd.hiRatio = (h7.length >= 4 && h28.length >= 14 && mean(h28) > 0) ? round(mean(h7) / mean(h28), 2) : null;
+      dd.hrvBase = null;
+      dd.recovery = null; dd.readiness = null;
+      var w = dd.well;
+      if (w && w.readiness != null) dd.readiness = Math.round(clamp(w.readiness * 10, 5, 99));
+      if (w && w.fatigue != null && w.soreness != null) {
+        var parts = [w.fatigue, w.soreness, w.sleep_quality != null ? w.sleep_quality : 3];
+        dd.recovery = Math.round(clamp(mean(parts) / 5 * 100, 20, 99));
+      }
+    }
+    var parts = String(p.name).trim().split(/\s+/);
+    var initials = parts.length > 1 ? (parts[0][0] + parts[1][0]) : (parts[0] ? parts[0].slice(0, 2) : '—');
+    var a = {
+      id: p.id, first: parts.slice(1).join(' '), last: parts[0] || p.name, name: p.name, short: p.name,
+      initials: initials.toUpperCase(), pos: p.pos, posName: POS[p.pos] || p.pos || 'Спортсмен', num: p.num, age: p.age || null,
+      profile: 'pilot', days: days, labs: null, prevLabs: null, labDate: null, prevLabDate: null,
+      custom: false, pilot: true, recDays: dates.length
+    };
+    applyML(a);
+    return a;
+  }
+
   function buildCustom(c, idx, today, checkins) {
     var days = [];
     for (var i = DAYS - 1; i >= 0; i--) {
@@ -288,6 +360,36 @@
       prevReadiness: prev.readiness, prevRecovery: prev.recovery
     };
     var flags = [];
+    if (d.hrv == null && a.pilot) {
+      var w = d.well;
+      s.pilot = true;
+      s.known7 = d.known7 || 0;
+      var recentCheckin = !!w || !!(a.days[idx - 1] && a.days[idx - 1].well);
+      if (!recentCheckin && !d.known7) {
+        s.status = 'nodata';
+      } else {
+        if (d.acwr != null && d.acwr > 1.25) flags.push({ k: 'load', t: 'Нагрузка +' + Math.round((d.acwr - 1) * 100) + '% (ACWR ' + String(d.acwr).replace('.', ',') + ')' });
+        if (d.hiRatio != null && d.hiRatio > 1.3) flags.push({ k: 'hi', t: 'Интенсивная работа +' + Math.round((d.hiRatio - 1) * 100) + '%' });
+        if (d.sleep != null && d.sleep < 7) flags.push({ k: 'sleep', t: 'Сон ' + fmtHours(d.sleep) });
+        if (w && w.readiness != null && w.readiness <= 4) flags.push({ k: 'self', t: 'Самооценка готовности ' + w.readiness + '/10' });
+        if (w && w.soreness != null && w.soreness <= 2) flags.push({ k: 'sore', t: 'Выраженная болезненность (' + w.soreness + '/5)' });
+        if (d.rr != null && d.rr >= RR_HIGH) flags.push({ k: 'model', t: 'Модель: риск ×' + String(round(d.rr, 1)).replace('.', ',') + ' к среднему' });
+        var kindsP = flags.map(function (f) { return f.k; });
+        function hasP(k) { return kindsP.indexOf(k) > -1; }
+        if ((hasP('load') || hasP('hi')) && hasP('model')) s.signal = 'Риск перегрузки';
+        else if (hasP('model')) s.signal = 'Повышенный риск травмы по модели';
+        else if (hasP('self') && hasP('sore')) s.signal = 'Плохое самочувствие — нужен разговор со специалистом';
+        else if (hasP('self')) s.signal = 'Низкая самооценка готовности';
+        else if (hasP('sleep') && hasP('sore')) s.signal = 'Недостаточное восстановление';
+        else s.signal = null;
+        if ((d.rr != null && d.rr >= RR_HIGH) || (w && w.readiness != null && w.readiness <= 3) || flags.length >= 3) s.status = 'attention';
+        else if (hasP('self') || hasP('sore') || (d.recovery != null && d.recovery < 55)) s.status = 'recovery';
+        else if (!w) s.status = 'nocheckin';
+        else s.status = 'ready';
+      }
+      s.flags = flags;
+      return s;
+    }
     if (d.hrv == null) {
       s.status = 'nodata';
     } else {
@@ -344,9 +446,15 @@
     options = options || {};
     var today = options.today || new Date();
     var checkins = options.checkins || {};
-    var athletes = ROSTER.map(function (r, i) { return buildAthlete(r, i, today, checkins); });
-    (options.custom || []).forEach(function (c, i) { athletes.push(buildCustom(c, i, today, checkins)); });
-    return { today: today, athletes: athletes, DAYS: DAYS, VISIBLE: VISIBLE, LABS: LABS, WEAR: WEAR, POS: POS };
+    var athletes;
+    if (options.pilot) {
+      var recs = options.pilot.records || {};
+      athletes = (options.pilot.athletes || []).map(function (p) { return buildPilotAthlete(p, today, recs); });
+    } else {
+      athletes = ROSTER.map(function (r, i) { return buildAthlete(r, i, today, checkins); });
+      (options.custom || []).forEach(function (c, i) { athletes.push(buildCustom(c, i, today, checkins)); });
+    }
+    return { today: today, athletes: athletes, DAYS: DAYS, VISIBLE: VISIBLE, LABS: LABS, WEAR: WEAR, POS: POS, pilot: !!options.pilot, isoOf: isoOf };
   }
 
   global.ASPData = {

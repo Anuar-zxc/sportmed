@@ -10,6 +10,16 @@
 
 Полные метрики, кривые калибровки и важность признаков — в `models/*_card.json` и на странице **Модели ИИ** демо-кабинета.
 
+## Внешняя проверка переноса (новое)
+
+Модель риска, обученная на бегунах, проверена **без дообучения** на второй когорте — 48 футболистках SoccerMon
+(16 599 документированных дней, 21 начало эпизода травмы; дни без записи честно считаются пропуском, дни
+текущего эпизода исключены). Результат: ROC-AUC **0,44** (95% ДИ 0,26–0,58) — перенос не подтверждён, событий
+слишком мало. Объединённое обучение двух когорт не улучшило качество на бегунах (0,62). Практический вывод для
+пилота: модель даёт осмысленное ранжирование в виде спорта, близком к обучающему, а для нового вида спорта
+нужна собственная разметка исходов — её и собирает пилот (shadow-режим → дообучение).
+Подготовка когорты: `prepare_football.py`; запуск с проверкой: третий аргумент `train_injury.py`.
+
 ## Принципы
 
 - **Без утечки будущего.** Признаки на день *t* используют только дни до *t* (риск травмы) или до *t* включительно для прогноза на *t+1* (готовность). В выгрузке бегунов перед травмами нет истории длиннее 7 дней, поэтому признаки с окнами 14–28 дней «узнавали» травму по пропускам (AUC 0,95) — они исключены.
@@ -23,7 +33,8 @@
 ```bash
 pip install -r ml/requirements.txt
 ml/fetch_data.sh
-python ml/train_injury.py ml/data/runners/day_approach_maskedID_timeseries.csv ml/out
+python ml/prepare_football.py ml/data/football/docs/data.js ml/out/football_series.json
+python ml/train_injury.py ml/data/runners/day_approach_maskedID_timeseries.csv ml/out ml/out/football_series.json
 python ml/train_readiness.py ml/data/soccermon/data/modeling/paper_inspired ml/out
 python ml/build_web.py ml/out .      # обновляет models.js и ml/models/
 python ml/verify_js.py               # нужен Node.js
