@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sportmed.vercel.app/sitemap.xml
+Sitemap: https://sportmed-eight.vercel.app/sitemap.xml
