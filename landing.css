@@ -17,6 +17,15 @@
 
 /* ---------- Hero ---------- */
 .hero { position: relative; padding-top: clamp(36px, 6vw, 72px); padding-bottom: clamp(48px, 6vw, 80px); }
+.hero::before {
+  content: ""; position: absolute; inset: -120px 0 auto; height: 720px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(640px 380px at 28% 8%, rgba(145, 106, 239, 0.16), transparent 68%),
+    radial-gradient(560px 340px at 74% 2%, rgba(244, 162, 97, 0.09), transparent 66%),
+    radial-gradient(520px 360px at 55% 46%, rgba(124, 200, 242, 0.07), transparent 70%);
+  filter: saturate(115%);
+}
+[data-theme="light"] .hero::before { opacity: 0.6; }
 .hero-top { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 22px; max-width: 900px; margin: 0 auto; }
 .pill-link { display: inline-flex; align-items: center; gap: 10px; padding: 6px 8px 6px 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); font-size: 13.5px; color: var(--text-2); text-decoration: none; }
 .pill-link:hover { color: var(--text); border-color: var(--violet-line); }

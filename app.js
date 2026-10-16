@@ -15,6 +15,7 @@
     return {
       theme: 'dark', compact: false, role: 'doctor', offset: 0,
       custom: [], checkins: {}, decisions: {}, read: [],
+      staff: null, consents: {}, audit: [], auditFilter: 'all', consentAthlete: 'a03',
       cols: { readiness: true, recovery: true, risk: true, sleep: true, hrv: false, status: true },
       sort: { key: 'risk', dir: 'desc' }, filter: 'all', range: 7,
       medSource: 'all', medAthlete: 'a03', twinAthlete: 'a03', recFilter: 'all', riskAthlete: 'a03'
@@ -40,13 +41,15 @@
   var ROLES = {
     doctor: { name: 'Алия Касымова', initials: 'АК', title: 'Спортивный врач' },
     coach: { name: 'Серик Нуртаев', initials: 'СН', title: 'Главный тренер' },
-    psych: { name: 'Мария Ли', initials: 'МЛ', title: 'Спортивный психолог' }
+    psych: { name: 'Мария Ли', initials: 'МЛ', title: 'Спортивный психолог' },
+    admin: { name: 'Айгерим Нурланова', initials: 'АН', title: 'Администратор' }
   };
   function can(what) {
     var r = state.role;
     if (what === 'labs') return r === 'doctor';
     if (what === 'psych') return r === 'psych';
     if (what === 'medical-decision') return r === 'doctor';
+    if (what === 'admin') return r === 'admin';
     return true;
   }
 
@@ -355,6 +358,7 @@
     recommendations: ['Рекомендации', 'Персональные действия на сегодня. Решение принимает специалист.'],
     reports: ['Отчёты', 'Выгрузка показателей команды в CSV для Excel.'],
     settings: ['Настройки', 'Рабочее пространство, роли доступа и источники данных.'],
+    admin: ['Администрирование', 'Пользователи, согласия спортсменов и журнал аудита — контур управления платформой.'],
     about: ['О платформе', 'От проверенных рыночных механик — к клиническому контуру сопровождения команд.'],
     help: ['Помощь и поддержка', 'Как пользоваться кабинетом, горячие клавиши и контакты.']
   };
@@ -767,6 +771,7 @@
       if (parsed.rows.length > 200000) throw new Error('Слишком много строк (> 200 000)');
       var an = analyzeRows(parsed.rows);
       lastImport = an;
+      logEvent('data', 'Проверка CSV на моделях: ' + fname + ' · ' + an.results.length + ' спортсменов (обработано в браузере)');
       var rows = an.results.slice().sort(function (p, q) { return (q.rr || -1) - (p.rr || -1); });
       out.innerHTML = '<div class="note ok-note">' + icon('check', 'icon-sm') + '<span><b>' + esc(fname) + '</b>: ' + parsed.rows.length + ' ' + plural(parsed.rows.length, 'строка', 'строки', 'строк') + ', ' + rows.length + ' ' + plural(rows.length, 'спортсмен', 'спортсмена', 'спортсменов') + (an.skipped ? ' · пропущено строк без имени или даты: ' + an.skipped : '') + '. Прогноз — на день после последней даты в файле.</span></div>' +
         '<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Спортсмен</th><th scope="col">Дней</th><th scope="col">Последняя дата</th><th scope="col">Риск травмы · 7 дн.</th><th scope="col">Главный фактор</th><th scope="col">Готовность завтра</th><th scope="col">«Плохой день»</th></tr></thead><tbody>' +
@@ -1119,6 +1124,7 @@
     a.download = 'ai-sports_' + type + '_' + asOfDate().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    logEvent('report', 'Сформирован отчёт «' + REPORTS[type].title + '»');
     toast('Отчёт «' + REPORTS[type].title + '» скачан');
   }
   RENDER.reports = function () {
@@ -1137,7 +1143,7 @@
     var themeSeg = '<div class="seg" role="group" aria-label="Тема">' + [['dark', 'Тёмная'], ['light', 'Светлая'], ['system', 'Как в системе']].map(function (x) { return '<button type="button" data-theme-set="' + x[0] + '" aria-pressed="' + (state.theme === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
     var roleSeg = '<div class="seg" role="group" aria-label="Роль">' + Object.keys(ROLES).map(function (k) { return '<button type="button" data-role-set="' + k + '" aria-pressed="' + (state.role === k) + '">' + ROLES[k].title + '</button>'; }).join('') + '</div>';
     var sources = [['G', 'Garmin', 'Health API · сон, HRV, нагрузка'], ['AH', 'Apple Health', 'HealthKit через приложение спортсмена'], ['P', 'Polar', 'AccessLink · тренировки и пульс'], ['O', 'Oura Ring', 'Сон и восстановление'], ['W', 'Whoop', 'Восстановление и нагрузка'], ['Lab', 'Лабораторная система', 'Импорт результатов анализов'], ['AS', 'Браслет AI Sports', 'Собственное устройство платформы']];
-    var M = [['Готовность и восстановление', 'y', 'y', 'y'], ['Данные носимых устройств', 'y', 'y', 'y'], ['Лабораторные анализы', 'y', 'n', 'n'], ['Журнал травм и болезней', 'y', 'p', 'n'], ['Ответы чек-ина (детально)', 'n', 'n', 'y'], ['Статус чек-ина (обобщённо)', 'y', 'p', 'y']];
+    var M = [['Готовность и восстановление', 'y', 'y', 'y', 'n'], ['Данные носимых устройств', 'y', 'y', 'y', 'n'], ['Лабораторные анализы', 'y', 'n', 'n', 'n'], ['Журнал травм и болезней', 'y', 'p', 'n', 'n'], ['Ответы чек-ина (детально)', 'n', 'n', 'y', 'n'], ['Статус чек-ина (обобщённо)', 'y', 'p', 'y', 'n'], ['Пользователи, согласия, аудит', 'n', 'n', 'n', 'y']];
     function cell(v) { return v === 'y' ? '<td class="y">' + icon('check', 'icon-sm') + '<span class="sr-only">Да</span></td>' : v === 'p' ? '<td class="p">с согласия</td>' : '<td class="n">—<span class="sr-only">Нет</span></td>'; }
     return pageHead('settings') +
       '<div class="grid g-2" style="align-items:start">' +
@@ -1153,8 +1159,8 @@
           '<section class="panel"><div class="panel-head"><div><h2>Источники данных</h2><p>Интеграции запланированы. В демо внешние устройства не подключены.</p></div></div><div class="panel-body">' +
             sources.map(function (s) { return '<div class="source"><span class="si">' + s[0] + '</span><span class="grow"><b>' + s[1] + '</b><span>' + s[2] + '</span></span><span class="badge mute">Не подключено</span></div>'; }).join('') +
             '<a class="btn btn-ghost btn-sm" style="margin-top:14px" href="mailto:' + EMAIL + '?subject=' + encodeURIComponent('Интеграция источника данных — AI Sports') + '">' + icon('mail', 'icon-sm') + 'Обсудить интеграцию</a></div></section>' +
-          '<section class="panel"><div class="panel-head"><div><h2>Матрица доступа</h2><p>Каждая роль видит только нужную ей категорию данных</p></div></div><div class="panel-body table-wrap"><table class="access-table"><thead><tr><th scope="col">Данные</th><th scope="col">Врач</th><th scope="col">Тренер</th><th scope="col">Психолог</th></tr></thead><tbody>' +
-            M.map(function (r) { return '<tr><td>' + r[0] + '</td>' + cell(r[1]) + cell(r[2]) + cell(r[3]) + '</tr>'; }).join('') + '</tbody></table></div></section>' +
+          '<section class="panel"><div class="panel-head"><div><h2>Матрица доступа</h2><p>Каждая роль видит только нужную ей категорию данных</p></div></div><div class="panel-body table-wrap"><table class="access-table"><thead><tr><th scope="col">Данные</th><th scope="col">Врач</th><th scope="col">Тренер</th><th scope="col">Психолог</th><th scope="col">Админ</th></tr></thead><tbody>' +
+            M.map(function (r) { return '<tr><td>' + r[0] + '</td>' + cell(r[1]) + cell(r[2]) + cell(r[3]) + cell(r[4]) + '</tr>'; }).join('') + '</tbody></table></div></section>' +
         '</div>' +
       '</div>' + footerStrip();
   };
@@ -1216,6 +1222,7 @@
       ['Что значит «Риск травмы · 7 дн.»?', 'Оценка вероятности травмы в ближайшую неделю по модели, обученной на открытых данных 74 спортсменов. Рядом — кратность к среднему уровню (например, ×1,6). Это повод для внимания специалиста, а не диагноз.'],
       ['Как работает планировщик нагрузки?', 'В разделе «AI-аналитика» задайте нагрузку и интенсивность на ближайшие 3 дня — модель пересчитает риск травмы и сравнит с обычным режимом.'],
       ['Почему я не вижу анализы?', 'Лабораторные показатели — медицинская тайна и доступны роли «Спортивный врач». Смените роль в меню профиля справа вверху или в настройках.'],
+      ['Что умеет администратор?', 'Роль «Администратор» управляет пользователями и их ролями, согласиями спортсменов и видит журнал аудита, но не имеет доступа к медицинским данным. Переключитесь на неё в меню профиля и откройте раздел «Администрирование».'],
       ['Где хранятся мои действия в демо?', 'Добавленные спортсмены, чек-ины, решения и настройки сохраняются только в вашем браузере (localStorage) и никуда не отправляются. Их можно удалить в настройках кнопкой «Сбросить».'],
       ['Как выгрузить отчёт?', 'Нажмите «Создать отчёт» в любом разделе или откройте раздел «Отчёты». Файл CSV формируется прямо в браузере и открывается в Excel.']
     ];
@@ -1234,6 +1241,199 @@
         '</div>' +
       '</div>' + footerStrip();
   };
+
+  /* ======================= Администрирование ======================= */
+  var CONSENT_KEYS = [
+    ['wear', 'Данные носимых устройств', 'Сон, HRV, пульс, нагрузка с браслета'],
+    ['lab', 'Лабораторные анализы', 'Импорт результатов из лаборатории'],
+    ['coach', 'Передача тренеру', 'Обобщённые показатели готовности для штаба'],
+    ['research', 'Обезличенное использование', 'Дообучение моделей без имени и контактов']
+  ];
+  var CONSENT_OFF = { 'a20:wear': 1, 'a20:lab': 1, 'a11:research': 1, 'a06:coach': 1, 'a22:research': 1 };
+  function consentOf(id, key) {
+    var o = state.consents[id];
+    if (o && key in o) return !!o[key];
+    return !(CONSENT_OFF[id + ':' + key]);
+  }
+  function staffSeed() {
+    return [
+      { id: 'u-adm', name: 'Айгерим Нурланова', role: 'admin', email: 'a.nurlanova@demo.team', active: true, last: 'сегодня, 08:02' },
+      { id: 'u-doc', name: 'Алия Касымова', role: 'doctor', email: 'a.kassymova@demo.team', active: true, last: 'сегодня, 07:41' },
+      { id: 'u-coach', name: 'Серик Нуртаев', role: 'coach', email: 's.nurtaev@demo.team', active: true, last: 'сегодня, 06:58' },
+      { id: 'u-psych', name: 'Мария Ли', role: 'psych', email: 'm.li@demo.team', active: true, last: 'вчера, 19:12' },
+      { id: 'u-coach2', name: 'Данияр Оспанов', role: 'coach', email: 'd.ospanov@demo.team', active: true, last: '3 дня назад' },
+      { id: 'u-old', name: 'Виктор Пак', role: 'psych', email: 'v.pak@demo.team', active: false, last: '2 месяца назад' }
+    ];
+  }
+  function getStaff() {
+    if (!state.staff || !state.staff.length) { state.staff = staffSeed(); }
+    return state.staff;
+  }
+  var AUDIT_KINDS = {
+    role: ['user', 'Доступ'], staff: ['users', 'Доступ'], consent: ['shield', 'Согласия'],
+    decision: ['check', 'Решения'], checkin: ['brain', 'Данные'], athlete: ['users', 'Данные'],
+    data: ['upload', 'Данные'], report: ['download', 'Отчёты'], system: ['settings', 'Система']
+  };
+  function logEvent(kind, text) {
+    var r = ROLES[state.role];
+    state.audit = [{ ts: Date.now(), kind: kind, text: text, by: r.name, role: r.title }].concat(state.audit || []).slice(0, 300);
+    save();
+  }
+  function demoAudit() {
+    function at(h, m, dAgo) { var d = new Date(model.today); d.setDate(d.getDate() - (dAgo || 0)); d.setHours(h, m, 0, 0); return d.getTime(); }
+    return [
+      { ts: at(7, 41), kind: 'role', text: 'Вход в систему', by: 'Алия Касымова', role: 'Спортивный врач', demo: true },
+      { ts: at(7, 2), kind: 'data', text: 'Синхронизация устройств: получены данные 23 из 24 спортсменов', by: 'Система', role: 'Планировщик', demo: true },
+      { ts: at(6, 58), kind: 'role', text: 'Вход в систему', by: 'Серик Нуртаев', role: 'Главный тренер', demo: true },
+      { ts: at(19, 12, 1), kind: 'report', text: 'Сформирован отчёт «Состояние команды»', by: 'Мария Ли', role: 'Спортивный психолог', demo: true },
+      { ts: at(18, 40, 1), kind: 'system', text: 'Обновление моделей до v1.0.0 (риск травмы, готовность)', by: 'Айгерим Нурланова', role: 'Администратор', demo: true },
+      { ts: at(9, 15, 2), kind: 'consent', text: 'Обновлено согласие: Глеб Никитин — данные устройств отозваны', by: 'Айгерим Нурланова', role: 'Администратор', demo: true },
+      { ts: at(8, 30, 3), kind: 'staff', text: 'Деактивирован пользователь Виктор Пак', by: 'Айгерим Нурланова', role: 'Администратор', demo: true }
+    ];
+  }
+  function allAudit() { return (state.audit || []).concat(demoAudit()); }
+
+  RENDER.admin = function () {
+    if (!can('admin')) {
+      return pageHead('admin') +
+        '<section class="panel panel-body" style="display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:32px">' +
+        '<span class="kpi-ic i" style="width:46px;height:46px">' + icon('lock') + '</span>' +
+        '<h2 class="title-m">Раздел доступен администратору</h2>' +
+        '<p class="muted" style="margin:0;max-width:52ch">Управление пользователями, согласиями и журналом аудита — зона ответственности администратора платформы. Текущая роль: «' + ROLES[state.role].title + '».</p>' +
+        '<button class="btn btn-primary" type="button" data-role-set="admin">' + icon('users', 'icon-sm') + 'Войти как администратор (демо)</button></section>' + footerStrip();
+    }
+    var staff = getStaff();
+    var activeStaff = staff.filter(function (u) { return u.active; }).length;
+    var real = model.athletes.filter(function (a) { return !a.custom; });
+    var totalConsents = real.length * CONSENT_KEYS.length, givenConsents = 0;
+    real.forEach(function (a) { CONSENT_KEYS.forEach(function (k) { if (consentOf(a.id, k[0])) givenConsents++; }); });
+    var audit = allAudit();
+    var today0 = new Date(model.today); today0.setHours(0, 0, 0, 0);
+    var todayEvents = audit.filter(function (e) { return e.ts >= today0.getTime(); }).length;
+    var fresh = real.filter(function (a) { return snapOf(a).status !== 'nodata'; }).length;
+    var quality = Math.round(fresh / real.length * 100);
+    var f = state.auditFilter || 'all';
+    var FILTERS = [['all', 'Все'], ['access', 'Доступ'], ['decision', 'Решения'], ['data', 'Данные'], ['system', 'Система']];
+    function inFilter(e) {
+      if (f === 'all') return true;
+      if (f === 'access') return e.kind === 'role' || e.kind === 'staff' || e.kind === 'consent';
+      if (f === 'decision') return e.kind === 'decision';
+      if (f === 'data') return e.kind === 'data' || e.kind === 'checkin' || e.kind === 'athlete' || e.kind === 'report';
+      return e.kind === 'system';
+    }
+    var shown = audit.filter(inFilter).slice(0, 40);
+    var seg = '<div class="seg" role="group" aria-label="Фильтр журнала">' + FILTERS.map(function (x) { return '<button type="button" data-audit-f="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    var ca = byId(state.consentAthlete) || real[0];
+    var mv = ML && ML.models ? ML.models.injury.version : '—';
+    var storage = 0; try { storage = (localStorage.getItem(STORE) || '').length; } catch (e) { /* noop */ }
+    var integrations = [['Vercel Edge', 'Хостинг и заголовки безопасности', 'ok', 'Активно'], ['Модели ИИ v' + mv, 'Инференс в браузере · ' + (ML && ML.ready ? 'загружены' : 'не загружены'), ML && ML.ready ? 'ok' : 'warn', ML && ML.ready ? 'Активно' : 'Ошибка'], ['Garmin Health API', 'Сон, HRV, нагрузка', 'mute', 'Не подключено'], ['Лабораторная система', 'Импорт анализов', 'mute', 'Не подключено'], ['SSO / каталог пользователей', 'Единый вход организации', 'mute', 'Не подключено']];
+
+    return pageHead('admin', '<button class="btn btn-ghost" type="button" data-action="audit-export">' + icon('download') + '<span class="lbl">Журнал в CSV</span></button>') +
+      '<div class="grid g-4">' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Пользователи</span><span class="kpi-ic i">' + icon('users', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + activeStaff + '<small>/ ' + staff.length + '</small></span></div><div class="kpi-foot"><span class="delta flat">' + staff.filter(function (u) { return !u.active; }).length + '</span>деактивировано</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Согласия спортсменов</span><span class="kpi-ic m">' + icon('shield', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + Math.round(givenConsents / totalConsents * 100) + '<small>%</small></span></div><div class="kpi-foot"><span class="delta flat">' + givenConsents + ' из ' + totalConsents + '</span>категорий данных</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>События аудита</span><span class="kpi-ic v">' + icon('file', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + todayEvents + '<small>сегодня</small></span></div><div class="kpi-foot"><span class="delta flat">' + audit.length + '</span>всего в журнале</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Качество данных</span><span class="kpi-ic o">' + icon('activity', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + quality + '<small>%</small></span></div><div class="kpi-foot"><span class="delta ' + (quality >= 90 ? 'up' : 'down') + '">' + fresh + '/' + real.length + '</span>устройств на связи</div></article>' +
+      '</div>' +
+      '<div class="grid g-main">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Пользователи и роли</h2><p>Каждая роль видит только нужную ей категорию данных — матрица в настройках</p></div><button class="btn btn-primary btn-sm" type="button" data-action="invite">' + icon('plus', 'icon-sm') + 'Пригласить</button></div>' +
+          '<div class="table-wrap"><table class="table staff-table"><caption class="sr-only">Пользователи платформы</caption><thead><tr><th scope="col">Пользователь</th><th scope="col">Роль</th><th scope="col">Активность</th><th scope="col">Доступ</th><th scope="col"><span class="sr-only">Действия</span></th></tr></thead><tbody>' +
+          staff.map(function (u) {
+            var r = ROLES[u.role] || ROLES.doctor;
+            var initials = u.name.trim().split(/\s+/).map(function (w) { return w[0]; }).slice(0, 2).join('').toUpperCase();
+            return '<tr tabindex="-1" style="cursor:default"' + (u.active ? '' : ' class="staff-off"') + '><td><span class="person"><span class="avatar ' + avClass(u.id) + '">' + esc(initials) + '</span><span><b>' + esc(u.name) + '</b><span>' + esc(u.email) + '</span></span></span></td>' +
+              '<td><label class="sr-only" for="role-' + u.id + '">Роль: ' + esc(u.name) + '</label><select class="select select-sm" id="role-' + u.id + '" data-staff-role="' + u.id + '">' + Object.keys(ROLES).map(function (k) { return '<option value="' + k + '"' + (u.role === k ? ' selected' : '') + '>' + ROLES[k].title + '</option>'; }).join('') + '</select></td>' +
+              '<td class="muted" style="font-size:13px">' + esc(u.last || '—') + '</td>' +
+              '<td><span class="switch"><input type="checkbox" data-staff-active="' + u.id + '" ' + (u.active ? 'checked' : '') + ' aria-label="Доступ: ' + esc(u.name) + '"><span class="track"></span></span></td>' +
+              '<td>' + (u.custom ? '<button class="icon-btn" type="button" data-staff-remove="' + u.id + '" aria-label="Удалить ' + esc(u.name) + '">' + icon('trash') + '</button>' : '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<div class="panel-foot"><span>' + icon('lock', 'icon-sm') + ' Администратор управляет доступом, но не видит медицинские данные</span></div></section>' +
+        '<section class="panel"><div class="panel-head"><div><h2>Система и модели</h2><p>Состояние платформы</p></div><span class="badge ice plain">' + icon('cpu', 'icon-sm') + 'v' + mv + '</span></div><div class="panel-body" style="display:flex;flex-direction:column;gap:10px">' +
+          integrations.map(function (x) { return '<div class="sys-row"><span class="grow"><b>' + esc(x[0]) + '</b><span>' + esc(x[1]) + '</span></span><span class="badge ' + x[2] + '">' + x[3] + '</span></div>'; }).join('') +
+          '<div class="sys-row"><span class="grow"><b>Локальное хранилище демо</b><span>Настройки, чек-ины, решения, журнал — только этот браузер</span></span><span class="badge plain mute num">' + num(Math.max(1, Math.round(storage / 1024))) + ' КБ</span></div>' +
+          '<div class="note">' + icon('info', 'icon-sm') + '<span>В продуктовой версии здесь — подключение SSO, резервное копирование, ротация ключей и соответствие требованиям к данным о здоровье.</span></div>' +
+        '</div></section>' +
+      '</div>' +
+      '<div class="grid g-main">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Журнал аудита <span class="badge plain mute">' + audit.length + '</span></h2><p>Кто, что и когда сделал — каждое действие фиксируется</p></div></div>' +
+          '<div class="table-tools"><div class="left">' + seg + '</div>' + (state.audit && state.audit.length ? '<button class="btn btn-quiet btn-sm" type="button" data-action="audit-clear">Очистить мои события</button>' : '') + '</div>' +
+          '<div class="audit-list">' + (shown.map(function (e) {
+            var k = AUDIT_KINDS[e.kind] || ['info', 'Событие'];
+            return '<div class="audit-row"><span class="ai-ic' + (e.demo ? ' demo' : '') + '">' + icon(k[0] === 'user' ? 'users' : k[0], 'icon-sm') + '</span><div class="grow"><b>' + esc(e.text) + '</b><span>' + esc(e.by) + ' · ' + esc(e.role) + (e.demo ? ' · демо-событие' : '') + '</span></div><time class="muted">' + fmtTime.format(new Date(e.ts)) + '</time></div>';
+          }).join('') || '<div class="empty">' + icon('search') + 'В этой категории пока нет событий.</div>') + '</div>' +
+          '<div class="panel-foot"><span>Показано ' + shown.length + ' из ' + audit.filter(inFilter).length + '</span><span>Хранится 300 последних событий</span></div></section>' +
+        '<section class="panel"><div class="panel-head"><div><h2>Согласия спортсменов</h2><p>Обработка данных — только в заявленных целях</p></div></div><div class="panel-body" style="display:flex;flex-direction:column;gap:16px">' +
+          '<div class="consent-cover">' + CONSENT_KEYS.map(function (k) {
+            var n = real.filter(function (a) { return consentOf(a.id, k[0]); }).length;
+            var pct = Math.round(n / real.length * 100);
+            return '<div class="factor"><div class="factor-row"><span>' + k[1] + '</span><span>' + n + ' из ' + real.length + '</span></div><div class="factor-track"><i style="width:' + pct + '%;background:' + (pct === 100 ? 'var(--mint)' : pct >= 90 ? 'var(--violet-strong)' : 'var(--orange)') + '"></i></div></div>';
+          }).join('') + '</div>' +
+          athleteSelect('consent-select', ca.id, 'Спортсмен для настройки согласий') +
+          '<div class="consent-grid">' + CONSENT_KEYS.map(function (k) {
+            var on = consentOf(ca.id, k[0]);
+            return '<label class="consent-row"><span class="grow"><b>' + k[1] + '</b><span>' + k[2] + '</span></span><span class="switch"><input type="checkbox" data-consent="' + k[0] + '" data-athlete="' + ca.id + '" ' + (on ? 'checked' : '') + '><span class="track"></span></span></label>';
+          }).join('') + '</div>' +
+          '<div class="note">' + icon('shield', 'icon-sm') + '<span>Отзыв согласия в реальной системе останавливает сбор соответствующей категории и запускает удаление по регламенту. Здесь — демонстрация интерфейса; каждое изменение попадает в журнал аудита.</span></div>' +
+        '</div></section>' +
+      '</div>' + footerStrip();
+  };
+  MOUNT.admin = function () {
+    var sel = document.getElementById('consent-select');
+    if (sel) sel.addEventListener('change', function () { state.consentAthlete = sel.value; save(); render(); });
+    view.querySelectorAll('[data-staff-role]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var u = getStaff().filter(function (x) { return x.id === el.getAttribute('data-staff-role'); })[0];
+        if (!u) return;
+        var was = (ROLES[u.role] || {}).title;
+        u.role = el.value;
+        logEvent('staff', 'Роль пользователя ' + u.name + ': «' + was + '» → «' + ROLES[u.role].title + '»');
+        render(); toast('Роль обновлена: ' + u.name);
+      });
+    });
+    view.querySelectorAll('[data-staff-active]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var u = getStaff().filter(function (x) { return x.id === el.getAttribute('data-staff-active'); })[0];
+        if (!u) return;
+        u.active = el.checked;
+        logEvent('staff', (u.active ? 'Активирован' : 'Деактивирован') + ' пользователь ' + u.name);
+        render(); toast(u.active ? 'Доступ открыт: ' + u.name : 'Доступ закрыт: ' + u.name);
+      });
+    });
+    view.querySelectorAll('[data-consent]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var id = el.getAttribute('data-athlete'), key = el.getAttribute('data-consent');
+        var a = byId(id);
+        (state.consents[id] = state.consents[id] || {})[key] = el.checked;
+        var k = CONSENT_KEYS.filter(function (x) { return x[0] === key; })[0];
+        logEvent('consent', 'Согласие «' + k[1] + '» для ' + (a ? a.short : id) + ': ' + (el.checked ? 'дано' : 'отозвано'));
+        render(); toast(el.checked ? 'Согласие записано' : 'Согласие отозвано · зафиксировано в журнале');
+      });
+    });
+  };
+  function inviteModal() {
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('users') + '</span><div><h2 id="modal-title">Пригласить пользователя</h2><p>Доступ появится после принятия приглашения (демо)</p></div></div>' +
+      '<form class="modal-body" id="inv-form" novalidate>' +
+      '<div class="field"><label for="inv-name">Имя и фамилия <span class="req" aria-hidden="true">*</span></label><input class="input" id="inv-name" maxlength="60" autocomplete="off" placeholder="Например, Асель Жумабаева" required aria-describedby="inv-err"><span class="err" id="inv-err"></span></div>' +
+      '<div class="grid g-2" style="gap:12px"><div class="field"><label for="inv-email">Рабочая почта</label><input class="input" id="inv-email" type="email" maxlength="80" autocomplete="off" placeholder="name@team.kz" aria-describedby="inv-email-err"><span class="err" id="inv-email-err"></span></div>' +
+      '<div class="field"><label for="inv-role">Роль</label><select class="select" id="inv-role">' + Object.keys(ROLES).map(function (k) { return '<option value="' + k + '">' + ROLES[k].title + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Не указывайте реальные персональные данные. Пользователь хранится только в вашем браузере.</span></div>' +
+      '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Отправить приглашение</button></div></form>', {
+      mount: function (m) {
+        m.querySelector('#inv-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var nameEl = m.querySelector('#inv-name'), emailEl = m.querySelector('#inv-email');
+          var val = nameEl.value.replace(/\s+/g, ' ').trim(), em = emailEl.value.trim(), ok = true;
+          if (val.length < 3 || !/^[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі\-\s']+$/.test(val)) { nameEl.setAttribute('aria-invalid', 'true'); m.querySelector('#inv-err').textContent = 'Укажите имя буквами (минимум 3 символа)'; ok = false; } else { nameEl.removeAttribute('aria-invalid'); m.querySelector('#inv-err').textContent = ''; }
+          if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { emailEl.setAttribute('aria-invalid', 'true'); m.querySelector('#inv-email-err').textContent = 'Похоже, в адресе опечатка'; ok = false; } else { emailEl.removeAttribute('aria-invalid'); m.querySelector('#inv-email-err').textContent = ''; }
+          if (!ok) { (m.querySelector('[aria-invalid="true"]') || nameEl).focus(); return; }
+          var role = m.querySelector('#inv-role').value;
+          getStaff().push({ id: 'u' + Date.now().toString(36), name: val, role: role, email: em || 'приглашение не отправлено', active: true, last: 'приглашён', custom: true });
+          logEvent('staff', 'Приглашён пользователь ' + val + ' с ролью «' + ROLES[role].title + '»');
+          closeModal(); render(); toast('Приглашение создано: ' + val);
+        });
+      }
+    });
+  }
 
   /* ======================= Drawer (athlete card) ======================= */
   function openAthlete(id) {
@@ -1272,8 +1472,10 @@
       var rm = e.target.closest('[data-remove]');
       if (rm) {
         var rid = rm.getAttribute('data-remove');
+        var rmA = byId(rid);
         state.custom = state.custom.filter(function (c) { return c.id !== rid; });
         delete state.checkins[rid];
+        logEvent('athlete', 'Удалён демо-профиль спортсмена' + (rmA ? ': ' + rmA.short : ''));
         save(); rebuild(); closeDrawer(); render(); toast('Профиль удалён из демо-состава');
       }
     });
@@ -1322,6 +1524,7 @@
           if (!ok) { (m.querySelector('[aria-invalid="true"]') || name).focus(); return; }
           var id = 'c' + Date.now().toString(36);
           state.custom.push({ id: id, name: val, pos: m.querySelector('#add-pos').value, num: nv });
+          logEvent('athlete', 'Добавлен демо-профиль спортсмена: ' + val);
           save(); rebuild(); closeModal();
           if (current.page !== 'athletes') go('athletes'); else render();
           toast('Спортсмен добавлен: ' + val);
@@ -1374,6 +1577,7 @@
           if (sleeph != null) entry.sleeph = sleeph;
           if (dur != null) { entry.dur = dur; entry.rpe = dur === 0 ? 0 : rpe; }
           state.checkins[a.id] = [entry].concat(state.checkins[a.id] || []).slice(0, 20);
+          logEvent('checkin', 'Заполнен чек-ин: ' + a.short + ' · готовность ' + entry.readiness + '/10');
           save(); rebuild(); closeModal(); render();
           var s2 = snapOf(byId(a.id));
           toast(s2.fc ? 'Чек-ин сохранён · прогноз на завтра ' + num(s2.fc.value, 1) + ' / 10' : 'Чек-ин сохранён');
@@ -1389,7 +1593,9 @@
         m.querySelector('#do-reset').addEventListener('click', function () {
           var keepTheme = state.theme;
           state = defaults(); state.theme = keepTheme;
-          save(); rebuild(); applyTheme(); closeModal(); render(); toast('Демо-данные сброшены');
+          save();
+          logEvent('system', 'Сброс демо-данных кабинета');
+          rebuild(); applyTheme(); closeModal(); render(); toast('Демо-данные сброшены');
         });
       }
     });
@@ -1425,7 +1631,12 @@
       }
     });
   }
-  function setRole(r) { state.role = r; save(); render(); toast('Роль: ' + ROLES[r].title); }
+  function setRole(r) {
+    var from = ROLES[state.role].title;
+    state.role = r; save();
+    logEvent('role', 'Смена роли: «' + from + '» → «' + ROLES[r].title + '»');
+    render(); toast('Роль: ' + ROLES[r].title);
+  }
   function notifPopover(btn) {
     var notes = buildNotes();
     var html = '<div class="notif-head"><b>Уведомления</b><span class="muted" style="font-size:12.5px">События команды · демо</span></div><div class="notif-list">' +
@@ -1512,6 +1723,8 @@
   function decide(id, status) {
     if (status === 'undo') delete state.decisions[id];
     else state.decisions[id] = { status: status, ts: Date.now(), by: ROLES[state.role].name + ' (' + ROLES[state.role].title.toLowerCase() + ')' };
+    var rec = buildRecs().filter(function (r) { return r.id === id; })[0];
+    logEvent('decision', (status === 'accepted' ? 'Согласована' : status === 'declined' ? 'Отклонена' : 'Отменено решение по') + ' рекомендация «' + (rec ? rec.title : id) + '»' + (rec && rec.a ? ' · ' + rec.a.short : ''));
     save(); render();
     toast(status === 'accepted' ? 'Рекомендация согласована и записана в журнал' : status === 'declined' ? 'Рекомендация отклонена' : 'Решение отменено');
   }
@@ -1531,6 +1744,15 @@
       else if (a === 'theme') toggleTheme();
       else if (a === 'cols') colsPopover(act);
       else if (a === 'reset') confirmReset();
+      else if (a === 'invite') inviteModal();
+      else if (a === 'audit-export') {
+        saveCSV([['Время', 'Категория', 'Событие', 'Кто', 'Роль']].concat(allAudit().map(function (e) {
+          return [new Date(e.ts).toISOString().replace('T', ' ').slice(0, 16), (AUDIT_KINDS[e.kind] || ['', 'Событие'])[1], e.text, e.by, e.role];
+        })), 'ai-sports_audit.csv');
+        logEvent('report', 'Выгружен журнал аудита в CSV');
+        render(); toast('Журнал аудита скачан');
+      }
+      else if (a === 'audit-clear') { state.audit = []; save(); render(); toast('Ваши события очищены — демо-история осталась'); }
       else if (a === 'csv-template') { saveCSV(templateRows(), 'ai-sports_shablon.csv'); toast('Шаблон скачан: 3 вымышленных спортсмена, 84 дня'); }
       else if (a === 'csv-sample') { runImport(templateRows().map(function (r) { return r.map(csvCell).join(';'); }).join('\n'), 'пример (3 вымышленных спортсмена)'); }
       else if (a === 'csv-results' && lastImport) {
@@ -1565,6 +1787,17 @@
     if (ts) { state.theme = ts.getAttribute('data-theme-set'); save(); applyTheme(); render(); return; }
     var rs = t.closest('[data-role-set]');
     if (rs) { setRole(rs.getAttribute('data-role-set')); return; }
+    var af = t.closest('[data-audit-f]');
+    if (af) { state.auditFilter = af.getAttribute('data-audit-f'); save(); render(); return; }
+    var srm = t.closest('[data-staff-remove]');
+    if (srm) {
+      var uid = srm.getAttribute('data-staff-remove');
+      var u = getStaff().filter(function (x) { return x.id === uid; })[0];
+      state.staff = getStaff().filter(function (x) { return x.id !== uid; });
+      if (u) logEvent('staff', 'Удалён пользователь ' + u.name);
+      render(); toast('Пользователь удалён');
+      return;
+    }
   });
 
   view.addEventListener('keydown', function (e) {
