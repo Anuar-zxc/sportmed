@@ -2181,8 +2181,19 @@
       return checkinBase() + '#' + CX.inviteHash(pilot.team.id, a.id, k, a.short);
     });
   }
+  /* Генератор QR (57 КБ) нужен только для выдачи ссылок — подгружается при первом обращении, не замедляя старт кабинета */
+  var qrLoading = null;
+  function ensureQr() {
+    if (typeof window.qrcode === 'function') return Promise.resolve();
+    if (!qrLoading) qrLoading = new Promise(function (resolve) {
+      var sc = document.createElement('script'); sc.src = 'vendor/qrcode.js'; sc.async = true;
+      sc.onload = resolve; sc.onerror = function () { qrLoading = null; resolve(); };
+      document.head.appendChild(sc);
+    });
+    return qrLoading;
+  }
   function qrSvg(text) {
-    if (typeof window.qrcode !== 'function') return '';
+    if (typeof window.qrcode !== 'function') return '<span class="qr qr-missing">QR недоступен офлайн — отправьте ссылку</span>';
     var qr = window.qrcode(0, 'M');
     qr.addData(text); qr.make();
     var n = qr.getModuleCount(), q = 2, size = n + q * 2, d = '';
@@ -2196,7 +2207,8 @@
   function athleteLinkModal(id) {
     if (!isPilot() || !cryptoReady()) return;
     var a = byId(id); if (!a) return;
-    inviteUrl(a).then(function (url) {
+    Promise.all([inviteUrl(a), ensureQr()]).then(function (res) {
+      var url = res[0];
       logEvent('access', 'Выдана ссылка на чек-ин: ' + a.short);
       openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('link') + '</span><div><h2 id="modal-title">Чек-ин с телефона</h2><p>Персональная ссылка для «' + esc(a.short) + '»</p></div></div>' +
         '<div class="modal-body">' +
