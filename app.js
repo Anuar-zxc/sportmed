@@ -107,14 +107,14 @@
   function avClass(id) { return 'c' + ((hashCode(id) % 4) + 1); }
   function avatar(a, size) { return '<span class="avatar ' + (size || '') + ' ' + avClass(a.id) + '" aria-hidden="true">' + esc(a.initials) + '</span>'; }
   function scoreClass(v) { if (v == null) return 'muted'; return v >= 75 ? 'val-good' : v >= 60 ? 'val-mid' : v >= 45 ? 'val-warn' : 'val-bad'; }
-  function riskClass(rr) { if (rr == null) return 'muted'; return rr >= D.RR_HIGH ? 'val-bad' : rr >= D.RR_MID ? 'val-warn' : 'val-good'; }
+  function riskClass(rr) { if (rr == null) return 'muted'; return rr >= D.RR_HIGH ? 'val-bad' : rr >= D.RR_MID ? 'val-warn' : ''; } // обычный риск — обычным текстом, цветом выделяем только повышенный
   function fmtRisk(s) { return s.risk == null ? '—' : num(s.risk, 1) + '%'; }
   function fmtRR(rr) { return rr == null ? '—' : '×' + num(rr, 1); }
   function riskTip(s) { return s.risk == null ? 'Недостаточно истории нагрузки для прогноза' : 'Оценка вероятности травмы на 7 дней: ' + num(s.risk, 1) + '% · ' + fmtRR(s.rr) + ' к среднему уровню'; }
-  function scoreColor(v) { return v == null ? 'var(--faint)' : v >= 75 ? 'var(--mint)' : v >= 60 ? 'var(--violet)' : v >= 45 ? 'var(--orange)' : 'var(--red)'; }
+  function scoreColor(v) { return v == null ? 'var(--faint)' : v >= 75 ? 'var(--mint)' : v >= 60 ? 'var(--text-2)' : v >= 45 ? 'var(--orange)' : 'var(--red)'; }
   var STATUS = {
-    ready: ['ok', 'Готов к нагрузке'], attention: ['warn', 'Требует внимания'],
-    recovery: ['info', 'Восстановление'], nodata: ['mute', 'Ожидает данных'],
+    ready: ['ok', 'Готов к нагрузке'], attention: ['bad', 'Требует внимания'],
+    recovery: ['warn', 'Восстановление'], nodata: ['mute', 'Ожидает данных'],
     nocheckin: ['mute', 'Нет чек-ина']
   };
   function statusBadge(st) { var s = STATUS[st] || STATUS.nodata; return '<span class="badge ' + s[0] + '">' + s[1] + '</span>'; }
@@ -214,7 +214,7 @@
   var chartSeq = 0;
   function lineChart(o) {
     var id = 'ch' + (++chartSeq);
-    var W = 640, H = o.height || 220, pl = 34, pr = 12, pt = 12, pb = 26;
+    var W = 640, H = o.height || 220, pl = 34, pr = o.endLabels === false ? 12 : 46, pt = 12, pb = 26;
     var all = [];
     o.series.forEach(function (s) { s.values.forEach(function (v) { if (v != null && v === v) all.push(v); }); });
     if (!all.length) all = [0, 10];
@@ -228,12 +228,12 @@
     var g = '';
     for (var k = 0; k <= 4; k++) {
       var val = min + (max - min) * k / 4, yy = y(val);
-      g += '<line class="grid-line" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + yy + '" y2="' + yy + '" stroke-dasharray="' + (k === 0 ? '0' : '3 4') + '"/>';
+      g += '<line class="' + (k === 0 ? 'base-line' : 'grid-line') + '" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + yy + '" y2="' + yy + '"/>';
       g += '<text class="axis-text" x="' + (pl - 8) + '" y="' + (yy + 4) + '" text-anchor="end">' + ((max - min) >= 8 ? Math.round(val) : num(val, 1)) + '</text>';
     }
     var every = n > 20 ? 5 : n > 10 ? 2 : 1;
     o.labels.forEach(function (d, i) { if (i % every === 0 || i === n - 1) g += '<text class="axis-text" x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + dDay(d) + '</text>'; });
-    var paths = '';
+    var paths = '', ends = [];
     o.series.forEach(function (s, si) {
       var dpath = '', started = false;
       s.values.forEach(function (v, i) { if (v == null) { started = false; return; } dpath += (started ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); started = true; });
@@ -241,16 +241,26 @@
         var first = s.values.findIndex(function (v) { return v != null; });
         var lastI2 = s.values.length - 1;
         while (lastI2 > 0 && s.values[lastI2] == null) lastI2--;
-        paths += '<path d="' + dpath + 'L' + x(lastI2) + ' ' + (H - pb) + 'L' + x(first) + ' ' + (H - pb) + 'Z" style="fill:' + s.color + ';opacity:.1"/>';
+        paths += '<path d="' + dpath + 'L' + x(lastI2) + ' ' + (H - pb) + 'L' + x(first) + ' ' + (H - pb) + 'Z" style="fill:' + s.color + ';opacity:.07"/>';
       }
       paths += '<path d="' + dpath + '" fill="none" style="stroke:' + s.color + '" stroke-width="' + (s.width || 2.2) + '" stroke-linecap="round" stroke-linejoin="round"' + (s.dash ? ' stroke-dasharray="5 5"' : '') + '/>';
       if (!s.dash) {
         var li = s.values.length - 1; while (li > 0 && s.values[li] == null) li--;
-        if (s.values[li] != null) paths += '<circle cx="' + x(li) + '" cy="' + y(s.values[li]) + '" r="4" style="fill:' + s.color + '" stroke="var(--panel)" stroke-width="2"/>';
+        if (s.values[li] != null) {
+          paths += '<circle cx="' + x(li) + '" cy="' + y(s.values[li]) + '" r="4" style="fill:' + s.color + '" stroke="var(--panel)" stroke-width="2"/>';
+          ends.push({ x: x(li), y: y(s.values[li]), v: s.values[li], s: s });
+        }
       }
     });
+    // значение на конце линии — подпись текстовым цветом; при наложении подписываем только первую серию
+    if (o.endLabels !== false) {
+      ends.forEach(function (e, i) {
+        if (ends.slice(0, i).some(function (p) { return Math.abs(p.y - e.y) < 15; })) return;
+        paths += '<text class="end-label" x="' + (e.x + 9) + '" y="' + (e.y + 4) + '">' + num(e.v, e.s.dec || 0) + '</text>';
+      });
+    }
     CHARTS[id] = { o: o, x: x, y: y, W: W, H: H, pl: pl, pr: pr, step: step, n: n, pt: pt, pb: pb };
-    var legend = '<div class="chart-legend">' + o.series.map(function (s) { return '<span><i class="' + (s.dash ? 'dash' : '') + '" style="background:' + s.color + ';color:' + s.color + '"></i>' + esc(s.name) + '</span>'; }).join('') + '</div>';
+    var legend = o.series.length < 2 ? '' : '<div class="chart-legend">' + o.series.map(function (s) { return '<span><i class="' + (s.dash ? 'dash' : '') + '" style="background:' + s.color + ';color:' + s.color + '"></i>' + esc(s.name) + '</span>'; }).join('') + '</div>';
     return (o.legend === false ? '' : legend) + '<div class="chart-wrap" data-chart="' + id + '"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || 'График') + '">' + g + paths +
       '<line class="guide" x1="0" x2="0" y1="' + pt + '" y2="' + (H - pb) + '" style="stroke:var(--line-strong)" visibility="hidden"/><g class="dots"></g>' +
       '<rect x="' + pl + '" y="0" width="' + (W - pl - pr) + '" height="' + H + '" fill="transparent" class="hit"/></svg><div class="chart-tip" hidden></div></div>';
@@ -269,7 +279,7 @@
         var html = '<b>' + fmtFull.format(c.o.labels[i]) + '</b>', dh = '';
         c.o.series.forEach(function (s) {
           var v = s.values[i];
-          html += '<div><i style="background:' + s.color + '"></i>' + esc(s.name) + ': <strong>' + (v == null ? '—' : num(v, s.dec || 0)) + (s.unit || '') + '</strong></div>';
+          html += '<div><i style="background:' + s.color + '"></i><strong>' + (v == null ? '—' : num(v, s.dec || 0)) + (s.unit || '') + '</strong><span>' + esc(s.name) + '</span></div>';
           if (v != null) dh += '<circle cx="' + gx + '" cy="' + c.y(v) + '" r="4.5" style="fill:' + s.color + '" stroke="var(--panel)" stroke-width="2"/>';
         });
         dots.innerHTML = dh;
@@ -285,6 +295,35 @@
       svg.addEventListener('pointerleave', hide);
     });
   }
+  /* Столбцы: тонкие (≤ 24 px), скругление 4 px только у вершины, подсказка на каждом столбце */
+  function barChart(o) {
+    var W = 640, H = o.height || 170, pl = 40, pr = 12, pt = 12, pb = 26;
+    var vals = o.values.filter(function (v) { return v != null; });
+    var rawMax = vals.length ? Math.max.apply(null, vals) : 1;
+    var mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, rawMax))));
+    var max = Math.ceil(rawMax / mag) * mag || 1;
+    var n = o.values.length, band = (W - pl - pr) / n, bw = Math.min(24, band - 2);
+    function y(v) { return pt + (H - pt - pb) * (1 - v / max); }
+    var g = '';
+    [0, 0.5, 1].forEach(function (k) {
+      var yy = y(max * k);
+      g += '<line class="' + (k === 0 ? 'base-line' : 'grid-line') + '" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + yy + '" y2="' + yy + '"/>';
+      g += '<text class="axis-text" x="' + (pl - 8) + '" y="' + (yy + 4) + '" text-anchor="end">' + (max * k >= 1000 ? num(max * k / 1000, max * k % 1000 ? 1 : 0) + 'K' : Math.round(max * k)) + '</text>';
+    });
+    var every = n > 20 ? 5 : n > 10 ? 2 : 1, bars = '';
+    o.labels.forEach(function (d, i) {
+      var cx = pl + band * i + band / 2;
+      if (i % every === 0 || i === n - 1) g += '<text class="axis-text" x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle">' + dDay(d) + '</text>';
+      var v = o.values[i];
+      var tip = fmtFull.format(d) + ': ' + (v == null ? 'нет данных' : v === 0 ? 'отдых' : num(v) + (o.unit || ''));
+      if (v != null && v > 0) {
+        var top = y(v), h = (H - pb) - top, r = Math.min(4, h, bw / 2), x0 = cx - bw / 2;
+        bars += '<path class="bar" d="M' + x0 + ' ' + (H - pb) + 'V' + (top + r) + 'Q' + x0 + ' ' + top + ' ' + (x0 + r) + ' ' + top + 'H' + (x0 + bw - r) + 'Q' + (x0 + bw) + ' ' + top + ' ' + (x0 + bw) + ' ' + (top + r) + 'V' + (H - pb) + 'Z" style="fill:' + (i === n - 1 ? o.color : o.restColor || o.color) + '"><title>' + esc(tip) + '</title></path>';
+      }
+      bars += '<rect x="' + (pl + band * i) + '" y="' + pt + '" width="' + band + '" height="' + (H - pt - pb) + '" fill="transparent"><title>' + esc(tip) + '</title></rect>';
+    });
+    return '<div class="chart-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || 'График') + '">' + g + bars + '</svg></div>';
+  }
   function sparkline(values, color) {
     var W = 96, H = 34, v = values.filter(function (x) { return x != null; });
     if (v.length < 2) return '';
@@ -292,7 +331,7 @@
     var pts = values.map(function (val, i) { return val == null ? null : [(i / (values.length - 1)) * (W - 4) + 2, 4 + (H - 8) * (1 - (val - min) / (max - min))]; }).filter(Boolean);
     var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
     var last = pts[pts.length - 1];
-    return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><path d="' + d + 'L' + last[0] + ' ' + H + 'L2 ' + H + 'Z" style="fill:' + color + ';opacity:.12"/><path d="' + d + '" fill="none" style="stroke:' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" style="fill:' + color + '"/></svg>';
+    return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"><path d="' + d + '" fill="none" style="stroke:var(--spark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="3.5" style="fill:' + (color || 'var(--s1)') + '" stroke="var(--panel)" stroke-width="1.5"/></svg>';
   }
   function radar(axes) {
     var S = 340, c = S / 2, R = 100, n = axes.length, g = '';
@@ -302,10 +341,10 @@
     });
     axes.forEach(function (a, i) { var p = pt(i, R); g += '<line x1="' + c + '" y1="' + c + '" x2="' + p[0] + '" y2="' + p[1] + '" style="stroke:var(--line)"/>'; });
     var poly = axes.map(function (a, i) { return pt(i, R * Math.max(0.05, (a.v == null ? 0 : a.v) / 100)).join(','); }).join(' ');
-    g += '<polygon points="' + poly + '" style="fill:var(--violet);fill-opacity:.18;stroke:var(--violet)" stroke-width="2" stroke-linejoin="round"/>';
+    g += '<polygon points="' + poly + '" style="fill:var(--s1);fill-opacity:.1;stroke:var(--s1)" stroke-width="2" stroke-linejoin="round"/>';
     axes.forEach(function (a, i) {
       var p = pt(i, R * Math.max(0.05, (a.v == null ? 0 : a.v) / 100));
-      g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" style="fill:var(--orange)"/>';
+      g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4" style="fill:var(--s1)" stroke="var(--panel)" stroke-width="2"/>';
       var lp = pt(i, R + 26);
       g += '<text x="' + lp[0] + '" y="' + (lp[1] - 4) + '" text-anchor="middle">' + esc(a.name) + '</text><text x="' + lp[0] + '" y="' + (lp[1] + 10) + '" text-anchor="middle" style="font-weight:700;fill:var(--text)">' + (a.v == null ? '—' : a.v) + '</text>';
     });
@@ -403,16 +442,16 @@
 
   /* ======================= Shell ======================= */
   var PAGES = {
-    overview: ['Обзор команды', 'Полная картина здоровья команды. Точные решения каждый день.'],
-    athletes: ['Спортсмены', 'Единый профиль здоровья и готовности каждого спортсмена.'],
-    twin: ['Цифровой двойник', 'Связанные данные вместо разрозненных показателей.'],
-    medical: ['Медицинские данные', 'Лабораторные показатели и данные носимых устройств в одном месте.'],
-    analytics: ['AI-аналитика', 'Ранние сигналы, объяснение прогноза и планировщик нагрузки.'],
+    overview: ['Обзор команды', 'Состояние команды на выбранную дату.'],
+    athletes: ['Спортсмены', 'Готовность, восстановление и риск каждого спортсмена.'],
+    twin: ['Цифровой двойник', 'Все данные одного спортсмена: самочувствие, нагрузка, сон и анализы.'],
+    medical: ['Медицинские данные', 'Анализы и показатели носимых устройств.'],
+    analytics: ['AI-аналитика', 'Ранние сигналы, факторы риска и планировщик нагрузки.'],
     models: ['Модели ИИ', 'Как обучены модели, насколько они точны и где их пределы. Проверка на ваших данных.'],
     recommendations: ['Рекомендации', 'Персональные действия на сегодня. Решение принимает специалист.'],
     reports: ['Отчёты', 'Выгрузка показателей команды в CSV для Excel.'],
     settings: ['Настройки', 'Рабочее пространство, роли доступа и источники данных.'],
-    admin: ['Администрирование', 'Пользователи, согласия спортсменов и журнал аудита — контур управления платформой.'],
+    admin: ['Администрирование', 'Сотрудники, согласия спортсменов и журнал действий.'],
     about: ['О платформе', 'От проверенных рыночных механик — к клиническому контуру сопровождения команд.'],
     help: ['Помощь и поддержка', 'Как пользоваться кабинетом, горячие клавиши и контакты.']
   };
@@ -454,7 +493,7 @@
 
   function pageHead(page, extra) {
     var p = PAGES[page];
-    return '<div class="page-head"><div><p class="kicker"><span class="dot"></span>Платформа здоровья спортсменов</p><h1>' + p[0] + '</h1><p>' + p[1] + '</p></div>' +
+    return '<div class="page-head"><div><h1>' + p[0] + '</h1><p>' + p[1] + '</p></div>' +
       '<div class="page-actions">' + (extra || '') + '<button class="btn btn-primary" type="button" data-action="report">' + icon('download') + '<span class="lbl">Создать отчёт</span></button></div></div>';
   }
   function footerStrip() {
@@ -513,10 +552,10 @@
     var body = rows.map(function (x) {
       var a = x.a, s = x.s;
       var cells = colDefs.map(function (c) {
-        if ((c.k === 'recovery' || c.k === 'readiness') && opts.lite) return '<td class="num ' + scoreClass(s[c.k]) + '" style="font-weight:650">' + (s[c.k] == null ? '—' : s[c.k]) + '<span class="muted" style="font-weight:400"> /100</span></td>';
+        if ((c.k === 'recovery' || c.k === 'readiness') && opts.lite) return '<td class="num" style="font-weight:600">' + (s[c.k] == null ? '—' : s[c.k]) + '<span class="muted" style="font-weight:400"> /100</span></td>';
         if (c.k === 'readiness' || c.k === 'recovery') {
           var v = s[c.k];
-          return '<td><span class="bar"><b class="num ' + scoreClass(v) + '" style="min-width:24px">' + (v == null ? '—' : v) + '</b><span class="bar-track"><i style="width:' + (v || 0) + '%;background:' + scoreColor(v) + '"></i></span></span></td>';
+          return '<td><span class="bar"><b class="num" style="min-width:24px;font-weight:600">' + (v == null ? '—' : v) + '</b><span class="bar-track"><i style="width:' + (v || 0) + '%;background:' + (v != null && v < 45 ? 'var(--st-bad)' : v != null && v < 60 ? 'var(--st-warn)' : 'var(--bar-n)') + '"></i></span></span></td>';
         }
         if (c.k === 'risk') return '<td class="num ' + riskClass(s.rr) + '" style="font-weight:650" title="' + esc(riskTip(s)) + '">' + fmtRisk(s) + (s.rr != null ? ' <span class="muted" style="font-weight:400;font-size:12px">' + fmtRR(s.rr) + '</span>' : '') + '</td>';
         if (c.k === 'sleep') return '<td class="num' + (s.sleep != null && s.sleep < 7 ? ' val-warn' : '') + '">' + D.fmtHours(s.sleep) + '</td>';
@@ -879,6 +918,43 @@
     return out;
   }
 
+  /* «Сегодня»: одно главное число, состав по статусам и три вторичных показателя */
+  function todayPanel(t, dR, dV, insight) {
+    function signed(d) { return d > 0 ? '+' + d : d < 0 ? '−' + Math.abs(d) : '0'; }
+    function deltaTxt(d, tail) { var c = d > 0 ? 'up' : d < 0 ? 'down' : 'flat'; return '<span class="dl ' + c + '">' + signed(d) + '</span> ' + tail; }
+    var segs = [
+      ['ok', t.ready.length, 'готовы к нагрузке'],
+      ['warn', t.recovering.length, 'восстанавливаются'],
+      ['bad', t.attention.length, 'требуют внимания'],
+      ['mute', t.nodata.length, 'без свежих данных']
+    ];
+    var total = Math.max(1, t.total);
+    var bar = segs.filter(function (x) { return x[1] > 0; }).map(function (x) { return '<span class="sb-' + x[0] + '" style="flex-grow:' + x[1] + '"></span>'; }).join('');
+    var aria = segs.map(function (x) { return x[1] + ' ' + x[2]; }).join(', ');
+    var risks = t.list.map(function (x) { return x.s.risk; }).filter(function (v) { return v != null && v === v; });
+    var avgRisk = risks.length ? D.mean(risks) : null;
+    return '<section class="today" aria-labelledby="today-title">' +
+      '<div class="today-main">' +
+        '<h2 id="today-title">Готовность команды</h2>' +
+        '<p class="hero-fig">' + (t.readiness == null ? '—' : t.readiness) + '<span>из 100</span></p>' +
+        '<p class="today-sub">' + deltaTxt(dR, 'за неделю') + '</p>' +
+        '<p class="today-note">' + insight + '</p>' +
+      '</div>' +
+      '<div class="today-split">' +
+        '<div class="split-head"><h3>Состав на ' + fmtFull.format(asOfDate()) + '</h3><span>' + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + '</span></div>' +
+        '<div class="split-bar" role="img" aria-label="' + esc(aria) + '">' + bar + '</div>' +
+        '<ul class="split-legend">' + segs.map(function (x) {
+          return '<li><i class="sb-' + x[0] + '" aria-hidden="true"></i><b>' + x[1] + '</b><span>' + x[2] + '</span><em>' + Math.round(x[1] / total * 100) + '%</em></li>';
+        }).join('') + '</ul>' +
+      '</div>' +
+      '<dl class="today-stats">' +
+        '<div><dt>Восстановление</dt><dd>' + (t.recovery == null ? '—' : t.recovery) + '<small>/100</small></dd><p>' + deltaTxt(dV, 'за неделю') + '</p>' + sparkline(t.series('recovery', 14), 'var(--s2)') + '</div>' +
+        '<div><dt>Ранние сигналы</dt><dd>' + t.signals.length + '</dd><p>' + plural(t.signals.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' с отклонениями</p>' + sparkline(t.series('risk', 14), 'var(--s1)') + '</div>' +
+        '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small></dd><p>на 7 дней, по модели</p></div>' +
+      '</dl>' +
+    '</section>';
+  }
+
   /* ---------- Overview ---------- */
   RENDER.overview = function () {
     var t = team();
@@ -887,8 +963,6 @@
     var dR = (t.readiness != null && t.prevReadiness != null) ? t.readiness - t.prevReadiness : 0;
     var dV = (t.recovery != null && t.prevRecovery != null) ? t.recovery - t.prevRecovery : 0;
     function delta(d) { var c = d > 0 ? 'up' : d < 0 ? 'down' : 'flat'; return '<span class="delta ' + c + '">' + (d > 0 ? icon('up', 'icon-sm') : d < 0 ? icon('dn', 'icon-sm') : '') + (d > 0 ? '+' : '') + d + '</span>'; }
-    var riskSeries = t.series('risk', 7);
-    var readyShare = Math.round(t.ready.length / Math.max(1, t.total) * 100);
     var insight;
     var firstR = sr[0], lastR = sr[sr.length - 1], ch = (lastR != null && firstR != null) ? lastR - firstR : 0;
     if (ch >= 2) insight = 'Команда на верном пути: готовность выросла на <b>' + ch + ' ' + plural(ch, 'пункт', 'пункта', 'пунктов') + '</b> за период.';
@@ -898,14 +972,6 @@
     var recs = buildRecs().filter(function (r) { return r.status === 'pending'; }).slice(0, 3);
     var top5 = sortRows(t.list, { key: 'risk', dir: 'desc' }).slice(0, 5);
     var recCount = isPilot() ? pilotRecordCount() : 0;
-    var heroTags = isPilot()
-      ? '<span class="badge ice plain">' + icon('users', 'icon-sm') + 'Режим пилота</span><span class="badge plain">' + esc(pilot.team.sport || 'Команда') + '</span><span class="badge ok">Данные на этом устройстве</span>'
-      : '<span class="badge info plain">' + icon('users', 'icon-sm') + 'Демо-команда</span><span class="badge plain">Командный вид спорта</span><span class="badge ok">Модели ИИ v1.0</span>';
-    var heroTitle = isPilot() ? esc(pilot.team.name) : 'Сильная команда начинается со здоровья каждого.';
-    var heroSub = isPilot() ? 'Чек-ины, нагрузка и прогнозы моделей — на реальных данных вашей команды.' : 'Цифровой двойник спортсмена — от данных к действию.';
-    var heroMeta = '<span>' + icon('users', 'icon-sm') + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + '</span>' +
-      (isPilot() ? '<span>' + icon('file', 'icon-sm') + num(recCount) + ' ' + plural(recCount, 'запись', 'записи', 'записей') + '</span>' : '<span>' + icon('shield', 'icon-sm') + 'Вымышленные данные</span>') +
-      '<span>' + icon('cal', 'icon-sm') + 'Срез: ' + fmtFull.format(asOfDate()) + '</span>';
     var pilotStart = '';
     if (isPilot() && recCount === 0) {
       pilotStart = '<section class="panel panel-body" style="display:flex;flex-direction:column;gap:14px;padding:26px">' +
@@ -918,34 +984,22 @@
     }
 
     return pageHead('overview', isPilot() ? '<button class="btn btn-ghost" type="button" data-action="inbox">' + icon('brain') + '<span class="lbl">Входящие чек-ины</span></button><button class="btn btn-ghost" type="button" data-action="team-load">' + icon('load') + '<span class="lbl">Нагрузка дня</span></button>' : '') +
-      '<section class="team-hero" aria-label="Команда">' +
-        '<svg class="hero-waves" viewBox="0 0 400 200" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="var(--violet)" stroke-width="1.2" opacity=".55"><path d="M0 60 C60 40 100 80 160 60 S260 40 320 60 400 70 400 70"/><path d="M0 90 C60 70 100 110 160 90 S260 70 320 90 400 100 400 100"/><path d="M0 120 C60 100 100 140 160 120 S260 100 320 120 400 130 400 130"/><path d="M0 150 C60 130 100 170 160 150 S260 130 320 150 400 160 400 160"/></g></svg>' +
-        '<div style="position:relative"><div class="tags">' + heroTags + '</div>' +
-        '<h2>' + heroTitle + '</h2><p>' + heroSub + '</p>' +
-        '<div class="meta-row">' + heroMeta + '</div></div>' +
-        '<span class="hero-twin">' + icon('shield', 'icon-sm') + 'Digital Athlete Twin</span>' +
-      '</section>' + pilotStart +
-      '<div class="grid g-4">' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Готовность команды</span><span class="kpi-ic v">' + icon('activity', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + (t.readiness == null ? '—' : t.readiness) + '<small>/ 100</small></span>' + sparkline(t.series('readiness', 7), 'var(--violet)') + '</div><div class="kpi-foot">' + delta(dR) + 'к прошлой неделе</div></article>' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Восстановление</span><span class="kpi-ic m">' + icon('heart', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + (t.recovery == null ? '—' : t.recovery) + '<small>/ 100</small></span>' + sparkline(t.series('recovery', 7), 'var(--mint)') + '</div><div class="kpi-foot">' + delta(dV) + 'к прошлой неделе</div></article>' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Требуют внимания</span><span class="kpi-ic o">' + icon('shield', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.attention.length + '<small>' + plural(t.attention.length, 'спортсмен', 'спортсмена', 'спортсменов') + '</small></span>' + sparkline(riskSeries, 'var(--orange)') + '</div><div class="kpi-foot"><span class="delta down">' + t.signals.length + '</span>с ранними сигналами · риск по модели</div></article>' +
-        '<article class="panel kpi"><div class="kpi-top"><span>Готовы к тренировкам</span><span class="kpi-ic v">' + icon('users', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + t.ready.length + '<small>/ ' + t.total + '</small></span></div><div class="kpi-foot"><span class="delta flat">' + readyShare + '%</span>состава команды</div></article>' +
-      '</div>' +
+      todayPanel(t, dR, dV, insight) + pilotStart +
       '<div class="grid g-main">' +
-        '<section class="panel" aria-labelledby="dyn-title"><div class="panel-head"><div><h2 id="dyn-title">Динамика состояния команды</h2><p>Средние показатели готовности и восстановления</p></div>' +
+        '<section class="panel" aria-labelledby="dyn-title"><div class="panel-head"><div><h2 id="dyn-title">Готовность и восстановление</h2><p>Среднее по команде, из 100</p></div>' +
           '<div class="seg" role="group" aria-label="Период"><button type="button" data-range="7" aria-pressed="' + (rDays === 7) + '">7 дней</button><button type="button" data-range="30" aria-pressed="' + (rDays === 30) + '">30 дней</button></div></div>' +
           '<div class="panel-body" style="display:flex;flex-direction:column;gap:14px">' +
-          lineChart({ labels: labels, label: 'Динамика готовности и восстановления команды', series: [{ name: 'Готовность', color: 'var(--violet)', values: sr, area: true }, { name: 'Восстановление', color: 'var(--mint)', values: sv, dash: true }], min: 40, max: 100 }) +
-          '<div class="insight">' + icon('spark', 'icon-sm') + '<span>' + insight + '</span></div></div></section>' +
-        '<section class="panel" aria-labelledby="att-title"><div class="panel-head"><div><h2 id="att-title">Требуют внимания <span class="count">' + t.signals.length + '</span></h2><p>Ранние сигналы · orange flags</p></div></div>' +
-          '<div class="list" style="margin-top:8px">' + (t.signals.slice(0, 4).map(function (x) { return athleteRow(x, { flags: true }); }).join('') || '<div class="empty">' + icon('check') + 'Ранних сигналов нет</div>') + '</div>' +
+          lineChart({ labels: labels, label: 'Динамика готовности и восстановления команды', series: [{ name: 'Готовность', color: 'var(--s1)', values: sr }, { name: 'Восстановление', color: 'var(--s2)', values: sv }], min: 40, max: 100, height: 290 }) +
+          '</div></section>' +
+        '<section class="panel" aria-labelledby="att-title"><div class="panel-head"><div><h2 id="att-title">Ранние сигналы <span class="count">' + t.signals.length + '</span></h2><p>Отклонения от личной нормы, по убыванию риска</p></div></div>' +
+          '<div class="list" style="margin-top:8px">' + (t.signals.slice(0, 3).map(function (x) { return athleteRow(x, { flags: true }); }).join('') || '<div class="empty">' + icon('check') + 'Ранних сигналов нет</div>') + '</div>' +
           '<div class="panel-foot"><span>Сигнал — не диагноз</span><a class="btn btn-ghost btn-sm" href="#/analytics">Открыть анализ рисков ' + icon('arrow', 'icon-sm') + '</a></div></section>' +
       '</div>' +
       '<div class="grid g-main">' +
-        '<section class="panel" aria-labelledby="tbl-title"><div class="panel-head"><div><h2 id="tbl-title">Спортсмены <span class="badge plain mute">' + t.total + '</span></h2><p>Сортировка по риску травмы (модель) — сначала те, кому нужно внимание</p></div><a class="btn btn-ghost btn-sm" href="#/athletes">Все спортсмены ' + icon('arrow', 'icon-sm') + '</a></div>' +
-          '<div style="margin-top:12px">' + teamTable(top5, { readiness: true, recovery: true, risk: true, status: true }, { lite: true }) + '</div>' +
+        '<section class="panel" aria-labelledby="tbl-title"><div class="panel-head"><div><h2 id="tbl-title">Спортсмены <span class="badge plain mute">' + t.total + '</span></h2><p>Сначала — с наибольшим риском травмы по модели</p></div><a class="btn btn-ghost btn-sm" href="#/athletes">Все спортсмены ' + icon('arrow', 'icon-sm') + '</a></div>' +
+          '<div style="margin-top:12px">' + teamTable(top5, { readiness: true, risk: true, status: true }, { lite: true }) + '</div>' +
           '<div class="panel-foot"><span>Показано ' + Math.min(5, t.total) + ' из ' + t.total + '</span><span>' + icon('refresh', 'icon-sm') + (isPilot() ? ' Данные на этом устройстве' : ' Данные синхронизированы') + '</span></div></section>' +
-        '<section class="panel" aria-labelledby="rec-title"><div class="panel-head"><div><h2 id="rec-title">Рекомендации AI</h2><p>Персональные действия на сегодня</p></div><span class="badge info plain">AI insights</span></div>' +
+        '<section class="panel" aria-labelledby="rec-title"><div class="panel-head"><div><h2 id="rec-title">Рекомендации</h2><p>Ждут решения специалиста</p></div></div>' +
           '<div style="margin-top:8px">' + (recs.map(recCard).join('') || '<div class="empty">' + icon('check') + 'Все рекомендации рассмотрены</div>') + '</div>' +
           '<div class="panel-foot"><span>Решение принимает специалист</span><a class="btn btn-ghost btn-sm" href="#/recommendations">Все рекомендации ' + icon('arrow', 'icon-sm') + '</a></div></section>' +
       '</div>' + footerStrip();
@@ -1050,11 +1104,13 @@
       '<div class="grid g-2">' +
         (isPilot()
           ? '<section class="panel"><div class="panel-head"><div><h2>Самооценка готовности</h2><p>30 дней · утренний чек-ин, 0–10</p></div></div><div class="panel-body">' +
-            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Самооценка готовности за 30 дней', series: [{ name: 'Готовность, 0–10', color: 'var(--violet)', values: days.map(function (d) { return d.well && d.well.readiness != null ? d.well.readiness : null; }), area: true }], height: 200, min: 0, max: 10 }) + '</div></section>'
+            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Самооценка готовности за 30 дней', series: [{ name: 'Готовность, 0–10', color: 'var(--s1)', values: days.map(function (d) { return d.well && d.well.readiness != null ? d.well.readiness : null; }), area: true }], height: 200, min: 0, max: 10 }) + '</div></section>'
           : '<section class="panel"><div class="panel-head"><div><h2>HRV и личная норма</h2><p>30 дней · ночной rMSSD, мс</p></div></div><div class="panel-body">' +
-            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'HRV и личная норма', series: [{ name: 'HRV', color: 'var(--violet)', values: days.map(function (d) { return d.hrv; }), area: true, unit: ' мс' }, { name: 'Личная норма', color: 'var(--orange)', values: days.map(function (d) { return d.hrvBase; }), dash: true, unit: ' мс' }], height: 200 }) + '</div></section>') +
-        '<section class="panel"><div class="panel-head"><div><h2>Сон и нагрузка</h2><p>30 дней · часы сна и нагрузка (sRPE, у.е. ÷ 100; 0 — день отдыха)</p></div></div><div class="panel-body">' +
-          lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Сон и нагрузка', series: [{ name: 'Сон, ч', color: 'var(--mint)', values: days.map(function (d) { return d.sleep; }), dec: 1, unit: ' ч' }, { name: 'Нагрузка', color: 'var(--orange)', values: days.map(function (d) { return d.load == null ? null : Math.round(d.load / 10) / 10; }), dash: true, dec: 1 }], height: 200, min: 0 }) + '</div></section>' +
+            lineChart({ labels: days.map(function (d) { return d.date; }), label: 'HRV и личная норма', series: [{ name: 'HRV', color: 'var(--s1)', values: days.map(function (d) { return d.hrv; }), area: true, unit: ' мс' }, { name: 'Личная норма', color: 'var(--muted)', values: days.map(function (d) { return d.hrvBase; }), dash: true, unit: ' мс' }], height: 200 }) + '</div></section>') +
+        '<section class="panel"><div class="panel-head"><div><h2>Сон и нагрузка</h2><p>30 дней. Пустой столбец — день отдыха</p></div></div><div class="panel-body stack-charts">' +
+          '<div><h3 class="chart-title">Сон, часов</h3>' + lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Сон за 30 дней, часов', series: [{ name: 'Сон', color: 'var(--s2)', values: days.map(function (d) { return d.sleep; }), dec: 1, unit: ' ч' }], height: 130, legend: false, min: Math.max(0, Math.floor(Math.min.apply(null, days.map(function (d) { return d.sleep == null ? 99 : d.sleep; }).concat([6])) - 1)), max: Math.ceil(Math.max.apply(null, days.map(function (d) { return d.sleep == null ? 0 : d.sleep; }).concat([9])) + 0.5) }) + '</div>' +
+          '<div><h3 class="chart-title">Нагрузка, у.е. (sRPE)</h3>' + barChart({ labels: days.map(function (d) { return d.date; }), label: 'Тренировочная нагрузка за 30 дней', values: days.map(function (d) { return d.load == null ? null : Math.round(d.load); }), color: 'var(--s1)', restColor: 'color-mix(in srgb, var(--s1) 55%, var(--panel))', unit: ' у.е.', height: 130 }) + '</div>' +
+        '</div></section>' +
       '</div>' +
       (isPilot() ? journalHtml(a) : '') +
       (a.labs ? '<section class="panel"><div class="panel-head"><div><h2>Лабораторный срез</h2><p>Панель от ' + fmtFull.format(a.labDate) + '</p></div><a class="btn btn-ghost btn-sm" href="#/medical/' + a.id + '">Все медицинские данные ' + icon('arrow', 'icon-sm') + '</a></div><div class="panel-body">' + labs + '</div></section>' : '') +
@@ -1120,17 +1176,17 @@
     var steps = [
       ['01 · Единый поток данных', 'Адаптеры устройств, лабораторий и опросов → очередь событий → нормализация единиц и времени → хранилище временных рядов. У каждого измерения: источник, спортсмен, согласие, качество, время получения. Пропуск не равен нулю.'],
       ['02 · Персональная базовая линия', 'Собрать 28–42 дня наблюдений; учитывать позицию, фазу сезона и историю травм. Использовать медиану и MAD, скользящие окна 3/7/28 дней. До накопления базы выводить «недостаточно данных», а не персональный прогноз.'],
-      ['03 · Orange flags', 'Пример проверяемого правила: HRV ниже личной базы на 20% два дня + сон менее 7 часов + рост интенсивной нагрузки. Это иллюстративные пороги, которые должен утвердить врач; они не являются клинически валидированным алгоритмом.'],
-      ['04 · Risk Advisor', 'Калиброванная модель риска (градиентный бустинг) обучена на открытых данных и проверена на спортсменах, которых не видела; признаки — только прошлые дни, без утечки будущего. Следующий шаг — дообучение на размеченных исходах своей команды.'],
+      ['03 · Ранние сигналы', 'Пример проверяемого правила: HRV ниже личной базы на 20% два дня + сон менее 7 часов + рост интенсивной нагрузки. Это иллюстративные пороги, которые должен утвердить врач; они не являются клинически валидированным алгоритмом.'],
+      ['04 · Модель риска', 'Калиброванная модель риска (градиентный бустинг) обучена на открытых данных и проверена на спортсменах, которых не видела; признаки — только прошлые дни, без утечки будущего. Следующий шаг — дообучение на размеченных исходах своей команды.'],
       ['05 · Клинический цикл', 'Сигнал → очередь врача → проверка симптомов → подтверждённое действие → повторная оценка. Острые симптомы идут по медицинскому протоколу независимо от AI-score; запрет автоматического допуска к соревнованиям.'],
       ['06 · Проверка эффективности', 'Сначала shadow-mode без влияния на решения. Измерять чувствительность, PPV, калибровку, ложные тревоги на спортсмено-неделю и нагрузку на врача. Затем проспективный пилот с сопоставимой группой.']
     ];
     return pageHead('analytics') +
       '<div class="grid g-main-r">' +
-        '<section class="panel"><div class="panel-head"><div><h2>Требуют внимания <span class="count">' + t.signals.length + '</span></h2><p>Ранние сигналы · orange flags</p></div></div><div class="list" style="margin-top:8px">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Ранние сигналы <span class="count">' + t.signals.length + '</span></h2><p>Отклонения от личной нормы, по убыванию риска</p></div></div><div class="list" style="margin-top:8px">' +
           (t.signals.map(function (x) { return athleteRow(x, { flags: true, risk: true }); }).join('') || '<div class="empty">' + icon('check') + 'Ранних сигналов нет</div>') + '</div></section>' +
-        '<section class="panel panel-body" style="display:flex;flex-direction:column;gap:14px;padding-top:20px"><span class="kpi-ic o" style="width:44px;height:44px">' + icon('alert') + '</span><h2 class="title-m">Ранний сигнал, а не диагноз</h2>' +
-          '<p class="muted" style="margin:0">Orange flags объединяют отклонения сна, HRV и нагрузки относительно личной нормы, а модель риска оценивает сочетание нагрузки и самочувствия за 7 дней. Отдельный показатель не определяет риск травмы.</p>' +
+        '<section class="panel panel-body" style="display:flex;flex-direction:column;gap:14px;padding-top:20px"><h2 class="panel-title">Как читать сигналы</h2>' +
+          '<p class="muted" style="margin:0">Ранние сигналы объединяют отклонения сна, HRV и нагрузки относительно личной нормы, а модель риска оценивает сочетание нагрузки и самочувствия за 7 дней. Отдельный показатель не определяет риск травмы.</p>' +
           '<div class="flow"><span class="chip">Личная база</span><span class="arr">' + icon('arrow', 'icon-sm') + '</span><span class="chip">Сочетание сигналов</span><span class="arr">' + icon('arrow', 'icon-sm') + '</span><span class="chip">Оценка врача</span></div>' +
           '<div class="note">' + icon('info', 'icon-sm') + '<span>Риск считает модель, обученная на открытых данных (ROC-AUC ' + (CARD_I ? num(CARD_I.metrics_oof[CARD_I.chosen].roc_auc, 2) : '—') + ' на новых спортсменах). Спортсмены и измерения в демо вымышленные.</span></div>' +
           '<a class="btn btn-ghost btn-sm" style="align-self:flex-start" href="#/models">Как обучены модели ' + icon('arrow', 'icon-sm') + '</a></section>' +
@@ -1138,7 +1194,7 @@
       '<section class="panel"><div class="panel-head"><div><h2>Факторы риска</h2><p>Объяснение прогноза модели · ' + esc(ra.short) + '</p></div>' + athleteSelect('risk-select', ra.id, 'Спортсмен для разбора факторов') + '</div>' +
         '<div class="panel-body grid g-2" style="align-items:start">' +
           '<div style="display:flex;flex-direction:column;gap:12px"><div class="metric-tiles fc-tiles"><div class="tile"><span>' + icon('shield', 'icon-sm') + 'Риск травмы · 7 дн.</span><b class="' + riskClass(rs.rr) + '">' + fmtRisk(rs) + '</b><em>' + fmtRR(rs.rr) + ' к среднему уровню</em></div><div class="tile"><span>' + icon('activity', 'icon-sm') + 'Готовность завтра</span><b>' + (rs.fc ? num(rs.fc.value, 1) + '<small> / 10</small>' : '—') + '</b><em>' + (rs.fc ? '«плохой день»: ' + Math.round(rs.fc.pLow * 100) + '%' : 'нужен чек-ин') + '</em></div></div>' + injuryFactorsHtml(ra, 7) + '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:14px"><div><b style="font-size:14px">Риск травмы за 14 дней</b>' + lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Риск травмы за 14 дней', series: [{ name: 'Риск травмы · 7 дн., %', color: 'var(--orange)', values: days.map(function (d) { return d.risk; }), area: true, unit: '%', dec: 1 }, { name: 'Средний уровень', color: 'var(--faint)', values: days.map(function () { return baseWeek; }), dash: true, unit: '%', dec: 1 }], height: 190, min: 0 }) + '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:14px"><div><b style="font-size:14px">Риск травмы за 14 дней</b>' + lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Риск травмы за 14 дней', series: [{ name: 'Риск травмы · 7 дн., %', color: 'var(--s1)', values: days.map(function (d) { return d.risk; }), area: true, unit: '%', dec: 1 }, { name: 'Средний уровень', color: 'var(--muted)', values: days.map(function () { return baseWeek; }), dash: true, unit: '%', dec: 1 }], height: 190, min: 0 }) + '</div>' +
             '<div class="planner-box"><b style="font-size:14px">' + icon('sliders', 'icon-sm') + ' Планировщик нагрузки</b><p class="muted" style="margin:4px 0 12px;font-size:13px">Что будет с риском, если изменить план на ближайшие 3 дня. Расчёт той же моделью, прямо в браузере.</p>' + plannerHtml(ra) + '</div></div>' +
         '</div></section>' +
       '<section class="panel"><div class="panel-head"><div><h2>Как работает раннее предупреждение</h2><p>Заимствуем общие продуктовые принципы, не проприетарные алгоритмы или обучающие данные</p></div></div><div class="panel-body"><div class="steps-app">' +
@@ -1181,11 +1237,11 @@
     var seg = '<div class="seg" role="group" aria-label="Фильтр рекомендаций">' + [['all', 'Все'], ['pending', 'Ожидают'], ['accepted', 'Согласованы'], ['declined', 'Отклонены']].map(function (x) { return '<button type="button" data-recf="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + ' <span class="muted num">' + counts[x[0]] + '</span></button>'; }).join('') + '</div>';
     return pageHead('recommendations') +
       '<div class="grid g-main">' +
-        '<section class="panel"><div class="panel-head"><div><h2>' + icon('spark', 'icon-sm') + 'Рекомендации AI</h2><p>Сформированы по правилам, утверждённым врачом и тренерским штабом</p></div></div>' +
+        '<section class="panel"><div class="panel-head"><div><h2>Рекомендации</h2><p>Сформированы по правилам, утверждённым врачом и тренерским штабом</p></div></div>' +
           '<div class="table-tools">' + seg + '</div>' +
           '<div>' + (shown.map(recCard).join('') || '<div class="empty">' + icon('check') + 'В этой категории пусто.</div>') + '</div>' +
           '<div class="panel-foot"><span>' + icon('shield', 'icon-sm') + (isPilot() ? ' Рекомендации формируются по данным команды и прогнозам моделей.' : ' Рекомендации демонстрационные.') + ' Медицинские назначения и допуск к тренировкам остаются за врачом.</span></div></section>' +
-        '<section class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:12px"><span class="kpi-ic m" style="width:44px;height:44px">' + icon('stetho') + '</span><h2 class="title-m">Врач принимает решение. AI помогает увидеть больше.</h2>' +
+        '<section class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:12px"><h2 class="panel-title">Решение принимает специалист</h2>' +
           '<p class="muted" style="margin:0;font-size:13.5px">Каждое решение сохраняется в журнале. Рекомендации не применяются автоматически и не заменяют очную оценку. Рекомендации по лечению и медикаментам система не формирует.</p>' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><b>Журнал решений</b>' + (journal.length ? '<button class="btn btn-quiet btn-sm" type="button" data-action="clear-journal">Очистить</button>' : '') + '</div>' +
           '<div class="journal">' + (journal.map(function (x) { return '<div class="journal-row"><span class="dot" style="background:' + (x.d.status === 'accepted' ? 'var(--mint)' : 'var(--faint)') + '"></span><div><b>' + (x.d.status === 'accepted' ? 'Согласовано' : 'Отклонено') + ': ' + esc(x.r.title) + '</b><span>' + (x.r.a ? esc(x.r.a.short) : 'Команда') + ' · ' + esc(x.d.by) + ' · ' + fmtTime.format(new Date(x.d.ts)) + '</span></div></div>'; }).join('') || '<p class="muted" style="margin:0;font-size:13.5px">Пока нет решений по рекомендациям.</p>') + '</div>' +
@@ -1302,7 +1358,7 @@
       ['Kitman Labs', 'Медицина, травмы, нагрузка, развитие; 150+ интеграций', 'Risk Advisor, факторы риска, единый профиль', 'B2B enterprise; цена в референсе не раскрыта', 'Клубы, лиги, армия'],
       ['NFL / AWS', 'Видео, игровые и тренировочные данные, лиговые бенчмарки', 'Массовые симуляции сценариев и риска травм', 'Инфраструктура лиги; публичной цены нет', '32 клуба NFL'],
       ['InsideTracker', '54 биомаркера, ДНК, носимые устройства', 'Интерпретация анализов, AI-гид', '$149/год + лабораторные панели и тесты', 'B2C, люди, следящие за здоровьем'],
-      ['FC Barcelona', 'Омика, состав тела, питание, сон, GPS-нагрузка', 'Мультимодальные связи, ранние orange flags', 'Партнёрский исследовательский кейс; цена не указана', 'Элитные спортсмены клуба'],
+      ['FC Barcelona', 'Омика, состав тела, питание, сон, GPS-нагрузка', 'Мультимодальные связи, ранние сигналы', 'Партнёрский исследовательский кейс; цена не указана', 'Элитные спортсмены клуба'],
       ['Zone7', 'Данные разных устройств, нагрузка и восстановление', 'Риск травм, рекомендации нагрузки, планер', 'B2B для команд; цена в референсе не раскрыта', 'Профессиональные клубы'],
       ['AI Sports', 'Медицина, физиология, сон, нагрузка, психология; омика — позже', 'Модели риска травмы и готовности на открытых данных, объяснение факторов, планировщик нагрузки, mental check-in', '$500–1 000 / спортсмен / месяц', 'Профессиональные команды, федерации и клубы']
     ];
@@ -2348,7 +2404,7 @@
         (s.signal ? '<div class="note warn">' + icon('alert', 'icon-sm') + '<span><b>Ранний сигнал: ' + esc(s.signal) + '.</b><br>' + s.flags.map(function (f) { return esc(f.t); }).join(' · ') + '. Рекомендуется оценка спортивного врача. Не является диагнозом.</span></div>' :
           s.status === 'nodata' ? '<div class="note">' + icon('info', 'icon-sm') + '<span>Ожидаем данные с устройства. Первые 14–28 дней формируется личная норма — показатели выводятся без алертов.</span></div>' :
           '<div class="note">' + icon('check', 'icon-sm') + '<span>Отклонений от личной нормы не обнаружено.</span></div>') +
-        (s.status !== 'nodata' ? lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Готовность и восстановление за 14 дней', series: [{ name: 'Готовность', color: 'var(--violet)', values: days.map(function (d) { return d.readiness; }), area: true }, { name: 'Восстановление', color: 'var(--mint)', values: days.map(function (d) { return d.recovery; }), dash: true }], height: 190, min: 20, max: 100 }) : '') +
+        (s.status !== 'nodata' ? lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Готовность и восстановление за 14 дней', series: [{ name: 'Готовность', color: 'var(--s1)', values: days.map(function (d) { return d.readiness; }), area: true }, { name: 'Восстановление', color: 'var(--s2)', values: days.map(function (d) { return d.recovery; }) }], height: 190, min: 20, max: 100 }) : '') +
         (s.inj ? '<div><b style="font-size:13.5px;display:block;margin-bottom:8px">Главные факторы риска</b>' + injuryFactorsHtml(a, 3) + '</div>' : '') +
         '<div class="note">' + icon('shield', 'icon-sm') + '<span>' + (a.pilot ? 'Профиль «Моей команды»: данные хранятся только на этом устройстве. Прогнозы моделей не являются диагнозом.' : 'Вымышленный профиль. Прогнозы считают обученные модели; они не относятся к реальному человеку и не являются диагнозом.') + '</span></div>' +
       '</div>' +

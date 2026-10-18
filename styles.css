@@ -45,6 +45,10 @@
   --shadow-pop: 0 32px 80px -28px rgba(110, 70, 20, 0.34), 0 6px 16px rgba(70, 45, 10, 0.07);
   --shadow-accent: 0 10px 26px -12px rgba(240, 130, 50, 0.75);
   --overlay: rgba(45, 32, 15, 0.26);
+  /* данные: серии (проверены на дальтонизм и контраст), статусы, «приглушённый» цвет спарклайнов */
+  --s1: #d9661f; --s2: #2a78d6; --s3: #16996b;
+  --st-ok: #2f9e66; --st-warn: #eaa823; --st-bad: #dc4b3a; --st-none: #d9d2c6;
+  --spark: #c9c0b2; --gridc: #efe9df; --basec: #d8cfc1; --bar-n: #8f8679;
   --glass: rgba(251, 248, 243, 0.72);
 
   /* Шрифты как на устройствах Apple: SF Pro там, где он есть; Inter — его ближайший открытый аналог */
@@ -103,6 +107,9 @@
   --shadow-pop: 0 30px 80px -20px rgba(0, 0, 0, 0.85);
   --shadow-accent: 0 10px 26px -12px rgba(255, 150, 80, 0.6);
   --overlay: rgba(8, 6, 4, 0.62);
+  --s1: #e0702a; --s2: #3987e5; --s3: #199e70;
+  --st-ok: #3fb47a; --st-warn: #e9b03a; --st-bad: #e8604f; --st-none: #4a443b;
+  --spark: #6d655a; --gridc: #2b2721; --basec: #423c33; --bar-n: #a39a8c;
   --glass: rgba(18, 16, 13, 0.72);
   color-scheme: dark;
 }
