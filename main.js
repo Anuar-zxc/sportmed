@@ -209,3 +209,19 @@
     if (e.target.closest('[data-cookie-reset]')) { store.remove(CONFIG.consentKey); show(true); }
   });
 })();
+
+/* Карусель шагов на главной: кнопки «назад/вперёд» листают по одной карточке */
+(function () {
+  'use strict';
+  var car = document.querySelector('[data-carousel]');
+  if (!car) return;
+  var smooth = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  function stepW() { var c = car.querySelector('.step'); return c ? c.getBoundingClientRect().width + 16 : 300; }
+  document.querySelectorAll('[data-car]').forEach(function (b) {
+    b.addEventListener('click', function () { car.scrollBy({ left: (b.getAttribute('data-car') === 'next' ? 1 : -1) * stepW(), behavior: smooth }); });
+  });
+  car.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { e.preventDefault(); car.scrollBy({ left: stepW(), behavior: smooth }); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); car.scrollBy({ left: -stepW(), behavior: smooth }); }
+  });
+})();

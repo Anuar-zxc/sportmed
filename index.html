@@ -29,7 +29,7 @@
 </script>
 <script>document.documentElement.classList.remove('no-js');</script>
 </head>
-<body>
+<body class="landing">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
 <linearGradient id="g-brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd56e"/><stop offset="1" stop-color="#ff9867"/></linearGradient>
@@ -65,7 +65,6 @@
 </svg>
 
 <a class="skip-link" href="#main">Перейти к содержанию</a>
-<div class="page-glow" aria-hidden="true"></div>
 
 <header class="site-header">
   <div class="wrap header-row">
@@ -74,7 +73,7 @@
       <span class="brand-text"><b>AI Sports</b><small>Precision Medicine</small></span>
     </a>
     <nav class="top-nav" aria-label="Основная навигация">
-      <a href="#features">Возможности</a>
+      <a href="#product">Продукт</a>
       <a href="#how">Как работает</a>
       <a href="#pilot">Пилот</a>
       <a href="#trust">Безопасность</a>
@@ -82,12 +81,12 @@
     </nav>
     <div class="header-actions">
       <a class="btn btn-ghost btn-sm hide-xs" href="/app">Войти в кабинет</a>
-      <a class="btn btn-primary btn-sm hide-m" href="#contact">Запросить пилот</a>
+      <a class="btn btn-primary btn-sm hide-m" href="#contact">Запросить пилот <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
       <button class="icon-btn burger" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Открыть меню"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
     </div>
   </div>
   <nav class="mobile-menu" id="mobile-menu" aria-label="Мобильная навигация">
-    <a href="#features">Возможности</a>
+    <a href="#product">Продукт</a>
     <a href="#how">Как работает</a>
     <a href="#pilot">Пилот</a>
     <a href="#trust">Безопасность</a>
@@ -101,62 +100,54 @@
 
 <!-- HERO -->
 <section class="hero" aria-labelledby="hero-title">
-  <div class="wrap">
-    <div class="hero-top">
-      <a class="pill-link" href="/app#/models"><span class="tag">Новое</span>Модели ИИ, обученные на открытых научных данных</a>
-      <h1 id="hero-title">Цифровой двойник каждого спортсмена</h1>
-      <p class="lead">AI Sports объединяет анализы, данные носимых устройств, сон, нагрузку и самочувствие в персональный профиль — и каждый день показывает врачу и тренеру, кому нужна помощь.</p>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="tag-mono">Для спортивных врачей и тренеров</span>
+      <h1 id="hero-title">Цифровой двойник каждого спортсмена.</h1>
+      <p class="lead">AI Sports объединяет анализы, данные носимых устройств, сон, нагрузку и самочувствие в персональный профиль спортсмена и каждое утро показывает врачу и тренеру, кому нужна помощь.</p>
       <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="/app">Открыть кабинет</a>
+        <a class="btn btn-primary btn-lg" href="/app">Открыть кабинет <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-ghost btn-lg" href="#contact">Запросить пилот</a>
       </div>
       <ul class="trust">
-        <li><svg class="icon-sm" aria-hidden="true"><use href="#i-check"/></svg>Данные хранятся в Казахстане</li>
         <li><svg class="icon-sm" aria-hidden="true"><use href="#i-check"/></svg>Решение принимает специалист</li>
-        <li><svg class="icon-sm" aria-hidden="true"><use href="#i-check"/></svg>Без рекламы и трекеров</li>
+        <li><svg class="icon-sm" aria-hidden="true"><use href="#i-check"/></svg>Данные остаются у команды</li>
       </ul>
     </div>
 
-    <div class="product">
-      <div class="window" role="img" aria-label="Пример экрана демо-кабинета: обзор команды, динамика готовности и спортсмены с ранними сигналами">
-        <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span class="url">sportmed-eight.vercel.app/app</span></div>
-        <div class="window-body" aria-hidden="true">
-          <div class="w-side">
-            <span class="nav-i on"><svg><use href="#i-grid"/></svg>Обзор команды</span>
-            <span class="nav-i"><svg><use href="#i-users"/></svg>Спортсмены</span>
-            <span class="nav-i"><svg><use href="#i-twin"/></svg>Цифровой двойник</span>
-            <span class="nav-i"><svg><use href="#i-heart"/></svg>Медицинские данные</span>
-            <span class="nav-i"><svg><use href="#i-chart"/></svg>AI-аналитика</span>
-            <span class="nav-i"><svg><use href="#i-spark"/></svg>Рекомендации<span class="count">5</span></span>
-            <span class="nav-i"><svg><use href="#i-file"/></svg>Отчёты</span>
-          </div>
-          <div class="w-main">
-            <div class="w-head"><b>Обзор команды</b><span>Демо-команда, 24 спортсмена</span></div>
-            <div class="w-today">
-              <div class="w-hero"><span>Готовность команды</span><b>77<small>из 100</small></b><em><i class="dn">−6</i> за неделю</em></div>
-              <div class="w-split">
-                <span>Состав на сегодня</span>
-                <div class="w-bar"><i class="sb-ok" style="flex-grow:16"></i><i class="sb-warn" style="flex-grow:5"></i><i class="sb-bad" style="flex-grow:2"></i><i class="sb-mute" style="flex-grow:1"></i></div>
-                <ul><li><i class="sb-ok"></i><b>16</b> готовы</li><li><i class="sb-warn"></i><b>5</b> восстанавливаются</li><li><i class="sb-bad"></i><b>2</b> требуют внимания</li></ul>
-              </div>
-            </div>
-            <div class="w-grid">
-              <div class="w-card"><h4>Готовность и восстановление</h4>
-                <svg class="chart" viewBox="0 0 420 150"><g stroke="var(--gridc)"><line x1="0" x2="390" y1="20" y2="20"/><line x1="0" x2="390" y1="62" y2="62"/><line x1="0" x2="390" y1="104" y2="104"/></g><line x1="0" x2="390" y1="140" y2="140" stroke="var(--basec)"/>
-                  <path d="M0 50 L30 47 L60 52 L90 44 L120 42 L150 47 L180 41 L210 45 L240 39 L270 42 L300 38 L330 47 L360 56 L388 54" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-                  <path d="M0 74 L30 71 L60 77 L90 69 L120 66 L150 72 L180 67 L210 71 L240 63 L270 67 L300 64 L330 74 L360 82 L388 81" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-                  <circle cx="388" cy="54" r="4" fill="var(--s1)" stroke="var(--panel)" stroke-width="2"/><circle cx="388" cy="81" r="4" fill="var(--s2)" stroke="var(--panel)" stroke-width="2"/>
-                  <text x="396" y="58" class="w-lbl">77</text><text x="396" y="85" class="w-lbl">70</text></svg>
-                <div class="w-legend"><span><i style="background:var(--s1)"></i>Готовность</span><span><i style="background:var(--s2)"></i>Восстановление</span></div>
-              </div>
-              <div class="w-card"><h4>Ранние сигналы <span class="w-n">5</span></h4>
-                <div class="w-row"><span class="avatar c2">ЖЕ</span><div><b>Ерлан Жаксылыков</b><span>Нагрузка +41% к личной норме</span></div><span class="r">11,4%</span></div>
-                <div class="w-row"><span class="avatar c1">УС</span><div><b>Санжар Утепов</b><span>HRV −15%, пульс +5</span></div><span class="r">8,5%</span></div>
-                <div class="w-row"><span class="avatar c3">БМ</span><div><b>Максим Белов</b><span>HRV −16% три дня подряд</span></div><span class="r">7,6%</span></div>
-              </div>
-            </div>
-          </div>
+    <div class="collage" aria-hidden="true">
+      <div class="c-athlete">
+        <div class="ca-media">
+          <span class="ca-av">ЖЕ</span>
+          <b>Ерлан Жаксылыков</b>
+          <span>Полузащитник · № 3</span>
+          <span class="ca-link">Открыть профиль</span>
         </div>
+        <div class="ca-sec">
+          <span class="ca-h">Сегодня</span>
+          <div class="ca-row"><span class="ca-logo"><svg class="icon-sm"><use href="#i-activity"/></svg></span><b>Готовность к нагрузке</b><span class="ca-pill warn">Внимание</span></div>
+          <div class="ca-stats"><div><b><i class="d-ok"></i>56</b><span>готовность</span></div><div><b>54 мс</b><span>HRV</span></div><div><b>7 ч 50</b><span>сон</span></div></div>
+        </div>
+        <div class="ca-sec">
+          <span class="ca-h">Ранние сигналы</span>
+          <div class="ca-line"><span class="ca-ic"><svg class="icon-sm"><use href="#i-load"/></svg></span><span>Нагрузка к норме</span><b>+41%</b></div>
+          <div class="ca-line"><span class="ca-ic"><svg class="icon-sm"><use href="#i-heart"/></svg></span><span>HRV к норме</span><b>−17%</b></div>
+        </div>
+      </div>
+      <div class="c-side">
+        <div class="c-ill">
+          <svg viewBox="0 0 240 130" class="ill">
+            <path d="M8 104 C60 96 120 96 232 104" class="ln"/>
+            <path d="M8 116 C70 108 130 108 232 116" class="ln thin"/>
+            <circle cx="190" cy="34" r="16" class="fill-sun"/>
+            <path d="M22 70h28l9-22 14 40 11-30 6 12h30" class="ln bold"/>
+            <g class="ln"><path d="M150 96 l10-28 14 6 10 22"/><circle cx="162" cy="58" r="6"/><path d="M160 68 l-14 10 M170 70 l14 4"/></g>
+            <circle cx="214" cy="104" r="11" class="dot-dark"/><path d="M210 104h8M214 100v8" class="ln-w"/>
+          </svg>
+        </div>
+        <div class="c-mini"><span><svg class="icon-sm"><use href="#i-sleep"/></svg></span><b>Сон</b><em>7 ч 24 в среднем</em></div>
+        <div class="c-mini"><span><svg class="icon-sm"><use href="#i-brain"/></svg></span><b>Чек-ин</b><em>21 из 24 утром</em></div>
+        <div class="c-big"><span class="tag-mono dark">Сегодня</span><b>67%</b><em>состава готовы к полной нагрузке</em></div>
       </div>
     </div>
   </div>
@@ -164,93 +155,146 @@
 
 <div class="wrap">
   <div class="integrations" aria-label="Источники данных">
-    <span>Объединяет данные</span><b>Garmin</b><span class="sep" aria-hidden="true"></span><b>Apple Health</b><span class="sep" aria-hidden="true"></span><b>Polar</b><span class="sep" aria-hidden="true"></span><b>Oura</b><span class="sep" aria-hidden="true"></span><b>Whoop</b><span class="sep" aria-hidden="true"></span><b>Лаборатории</b><span class="sep" aria-hidden="true"></span><b>Браслет AI Sports</b>
+    <span>Объединяет данные</span><b>Garmin</b><b>Apple Health</b><b>Polar</b><b>Oura</b><b>Whoop</b><b>Лаборатории</b><b>Браслет AI Sports</b>
   </div>
 </div>
 
 <!-- PROBLEM -->
-<section class="section" id="problem" aria-labelledby="problem-title">
+<section class="band" id="problem" aria-labelledby="problem-title">
   <div class="wrap">
-    <div class="section-head">
-      <h2 class="title-l" id="problem-title">Спорт всё ещё строится на интуиции тренера, а не на непрерывной аналитике медицинских данных</h2>
+    <div class="center-head">
+      <span class="tag-mono rose">Проблема</span>
+      <h2 class="title-l" id="problem-title">Почему спорт до сих пор держится на интуиции.</h2>
     </div>
-    <div class="stats">
-      <div class="stat"><b>35–50%</b><p>спортсменов ежегодно получают травмы</p></div>
-      <div class="stat"><b>15–30%</b><p>времени подготовки теряется из-за травм, болезней и перетренированности</p></div>
-      <div class="stat"><b>до 20%</b><p>спортсменов испытывают симптомы эмоционального выгорания</p></div>
+    <div class="problems">
+      <div class="problem">
+        <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="26" y="30" width="68" height="34" rx="12" transform="rotate(-18 60 47)" class="fill-soft ln"/><g transform="rotate(-18 60 47)"><rect x="48" y="30" width="24" height="34" class="fill-sun ln"/><circle cx="55" cy="41" r="1.6" class="dk"/><circle cx="65" cy="41" r="1.6" class="dk"/><circle cx="55" cy="53" r="1.6" class="dk"/><circle cx="65" cy="53" r="1.6" class="dk"/></g><circle cx="94" cy="22" r="10" class="dot-dark"/><path d="M94 17v6M94 26v.5" class="ln-w"/></svg>
+        <b>35–50%</b>
+        <h3>Травмы</h3>
+        <p>спортсменов ежегодно получают травмы — часто после недель перегрузки, которую никто не видел.</p>
+      </div>
+      <div class="problem">
+        <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="22" y="18" width="70" height="58" rx="8" class="fill-soft ln"/><path d="M22 34h70" class="ln"/><path d="M38 12v12M76 12v12" class="ln"/><g class="ln"><path d="M32 44l8 8M40 44l-8 8M50 44l8 8M58 44l-8 8M68 44l8 8M76 44l-8 8M32 60l8 8M40 60l-8 8"/></g><rect x="66" y="60" width="12" height="10" rx="2" class="fill-sun ln"/><circle cx="98" cy="20" r="10" class="dot-dark"/><path d="M98 15v5l3 2" class="ln-w"/></svg>
+        <b>15–30%</b>
+        <h3>Потерянное время</h3>
+        <p>подготовки уходит на травмы, болезни и перетренированность вместо тренировок.</p>
+      </div>
+      <div class="problem">
+        <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="20" y="30" width="72" height="36" rx="8" class="fill-soft ln"/><rect x="92" y="41" width="7" height="14" rx="2" class="ln"/><rect x="26" y="36" width="16" height="24" rx="3" class="fill-rose ln"/><path d="M58 38l-8 12h10l-8 12" class="ln bold"/><circle cx="100" cy="20" r="10" class="dot-dark"/><path d="M96 20h8" class="ln-w"/></svg>
+        <b>до 20%</b>
+        <h3>Выгорание</h3>
+        <p>спортсменов испытывают симптомы эмоционального выгорания, а программы восстановления одинаковы для всех.</p>
+      </div>
     </div>
-    <p class="after-stats"><svg class="icon-sm" aria-hidden="true"><use href="#i-alert"/></svg>Программы восстановления — стандартные, а не персонализированные.</p>
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="section" id="features" aria-labelledby="features-title" style="padding-top:0">
+<!-- PRODUCT -->
+<section class="section" id="product" aria-labelledby="product-title">
   <div class="wrap">
-    <div class="section-head split">
-      <div>
-        <h2 class="title-l" id="features-title">Что есть в кабинете</h2>
-      </div>
-      <a class="btn btn-ghost" href="/app">Попробовать демо</a>
+    <div class="center-head">
+      <span class="tag-mono">Один кабинет</span>
+      <h2 class="title-l" id="product-title">Вся команда на одном экране.</h2>
     </div>
-    <div class="bento">
-      <a class="b-card wide" href="/app#/overview">
-        <span class="bi"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></span>
-        <h3>Обзор команды за 10 секунд</h3>
-        <p>Готовность, восстановление, риск и число спортсменов, готовых к нагрузке. Динамика за 7 и 30 дней и подсказка, что изменилось.</p>
-        <div class="b-demo" aria-hidden="true"><div class="mini-bars"><i style="height:62%"></i><i style="height:70%"></i><i style="height:66%"></i><i style="height:74%"></i><i style="height:80%"></i><i style="height:76%"></i><i class="hi" style="height:84%"></i><i class="o" style="height:58%"></i></div></div>
-        <span class="go">Обзор команды</span>
-      </a>
-      <a class="b-card wide" href="/app#/analytics">
-        <span class="bi o"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg></span>
-        <h3>Ранние сигналы, а не диагнозы</h3>
-        <p>Orange flags — сочетание отклонений HRV, сна и нагрузки относительно личной нормы спортсмена. С разбором факторов для врача.</p>
-        <div class="b-demo" aria-hidden="true"><div class="row"><span>Нагрузка (ACWR)</span><span class="hl">+35%</span></div><div class="row"><span>HRV к личной норме</span><span class="hl">−17% · 4 дня</span></div><div class="row"><span>Бросковая нагрузка</span><span class="hl">+31%</span></div></div>
-        <span class="go">AI-аналитика</span>
-      </a>
-      <a class="b-card" href="/app#/twin">
-        <span class="bi"><svg class="icon" aria-hidden="true"><use href="#i-twin"/></svg></span>
-        <h3>Цифровой двойник</h3>
-        <p>Профиль по шести измерениям, тренды HRV и сна за 30 дней, ежедневный психологический чек-ин.</p>
-        <span class="go">Открыть двойника</span>
-      </a>
-      <a class="b-card" href="/app#/medical">
-        <span class="bi m"><svg class="icon" aria-hidden="true"><use href="#i-flask"/></svg></span>
-        <h3>Медицинские данные</h3>
-        <p>Анализы и показатели устройств в одной таблице: референсы, динамика и статус. Фильтр по источнику.</p>
-        <span class="go">Медданные</span>
-      </a>
-      <a class="b-card" href="/app#/recommendations">
-        <span class="bi"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg></span>
-        <h3>Рекомендации с журналом</h3>
-        <p>Персональные действия на день. Врач согласует или отклоняет — каждое решение фиксируется.</p>
-        <span class="go">Рекомендации</span>
-      </a>
-      <a class="b-card" href="/app#/settings">
-        <span class="bi m"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg></span>
-        <h3>Роли и доступ</h3>
-        <p>Врач, тренер и психолог видят только свою категорию данных. Анализы — медицинская тайна.</p>
-        <span class="go">Матрица доступа</span>
-      </a>
-      <a class="b-card" href="/app#/reports">
-        <span class="bi o"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></span>
-        <h3>Отчёты в Excel</h3>
-        <p>Состояние команды, риски и восстановление, результаты пилота — CSV в один клик.</p>
-        <span class="go">Отчёты</span>
-      </a>
-      <a class="b-card" href="/app#/athletes">
-        <span class="bi"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></span>
-        <h3>Состав и поиск</h3>
-        <p>Фильтры по статусу, сортировка, настройка колонок, быстрый поиск по ⌘K и карточка спортсмена.</p>
-        <span class="go">Спортсмены</span>
-      </a>
+    <div class="shot" role="img" aria-label="Экран кабинета: список спортсменов с готовностью, сном, риском травмы и статусом">
+      <div class="shot-side" aria-hidden="true">
+        <span class="s-brand"><svg viewBox="0 0 34 34"><rect width="34" height="34" rx="10" fill="url(#g-brand)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#2a1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>AI Sports</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-grid"/></svg>Обзор команды</span>
+        <span class="s-i on"><svg class="icon-sm"><use href="#i-users"/></svg>Спортсмены</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-twin"/></svg>Цифровой двойник</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-heart"/></svg>Медицинские данные</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-chart"/></svg>Аналитика</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-spark"/></svg>Рекомендации</span>
+        <span class="s-i"><svg class="icon-sm"><use href="#i-file"/></svg>Отчёты</span>
+        <span class="s-user"><i>ЕС</i>Ербол Сапаров</span>
+      </div>
+      <div class="shot-main" aria-hidden="true">
+        <div class="sm-head"><b>Спортсмены</b><span class="sm-btn"><svg class="icon-sm"><use href="#i-plus"/></svg>Добавить</span></div>
+        <div class="sm-tools"><span class="sm-search">Имя, позиция или номер</span><span class="sm-sel">Все статусы</span></div>
+        <table class="sm-table">
+          <thead><tr><th>Спортсмен</th><th>Готовность</th><th>Восстановление</th><th>Сон</th><th>Риск травмы</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td><div class="who"><i class="av a1">ЖЕ</i><span><b>Ерлан Жаксылыков</b><em>Полузащитник · № 3</em></span></div></td><td>56</td><td>56</td><td>7 ч 50</td><td>11,4%</td><td><span class="st bad">Требует внимания</span></td></tr>
+            <tr><td><div class="who"><i class="av a2">НК</i><span><b>Нуржан Касенов</b><em>Защитник · № 9</em></span></div></td><td>88</td><td>84</td><td>7 ч 29</td><td>8,2%</td><td><span class="st ok">Готов к нагрузке</span></td></tr>
+            <tr class="hl-row"><td><div class="who"><i class="av a3">УС</i><span><b>Санжар Утепов</b><em>Вратарь · № 13</em></span></div></td><td>59</td><td>45</td><td>7 ч 27</td><td>8,3%</td><td><span class="st bad">Требует внимания</span></td></tr>
+            <tr><td><div class="who"><i class="av a4">ДЛ</i><span><b>Дмитрий Лаптев</b><em>Защитник · № 12</em></span></div></td><td>78</td><td>70</td><td>7 ч 24</td><td>7,9%</td><td><span class="st ok">Готов к нагрузке</span></td></tr>
+            <tr><td><div class="who"><i class="av a1">ИС</i><span><b>Илья Сорокин</b><em>Нападающий · № 10</em></span></div></td><td>66</td><td>55</td><td>7 ч 14</td><td>7,7%</td><td><span class="st warn">Восстановление</span></td></tr>
+            <tr><td><div class="who"><i class="av a2">МТ</i><span><b>Мирас Тулегенов</b><em>Полузащитник · № 15</em></span></div></td><td>90</td><td>87</td><td>8 ч 33</td><td>7,9%</td><td><span class="st ok">Готов к нагрузке</span></td></tr>
+          </tbody>
+        </table>
+        <div class="sm-pop"><b>Ранний сигнал</b><span>HRV −15% к личной норме три дня подряд, пульс покоя +5</span><em>Открыть разбор</em></div>
+      </div>
+    </div>
+
+    <div class="features">
+      <a class="feat" href="/app#/analytics"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><h3>Ранние сигналы</h3><p>Отклонения сна, HRV и нагрузки от личной нормы — с разбором факторов для врача.</p></a>
+      <a class="feat" href="/app#/twin"><svg class="icon" aria-hidden="true"><use href="#i-twin"/></svg><h3>Цифровой двойник</h3><p>Профиль спортсмена: готовность, прогноз на завтра, тренды сна и нагрузки за 30 дней.</p></a>
+      <a class="feat" href="/app#/medical"><svg class="icon" aria-hidden="true"><use href="#i-flask"/></svg><h3>Медицинские данные</h3><p>Анализы и показатели устройств в одной таблице: референсы, динамика и статус.</p></a>
+      <a class="feat" href="/app#/recommendations"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg><h3>Рекомендации с журналом</h3><p>Врач согласует или отклоняет действия — каждое решение фиксируется.</p></a>
+      <a class="feat" href="/checkin"><svg class="icon" aria-hidden="true"><use href="#i-brain"/></svg><h3>Чек-ин с телефона</h3><p>Спортсмен отвечает утром за минуту по личной ссылке, ответ приходит зашифрованным.</p></a>
+      <a class="feat" href="/app#/settings"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><h3>Роли и доступ</h3><p>Врач, тренер и психолог видят только свою категорию данных.</p></a>
+      <a class="feat" href="/app#/reports"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><h3>Отчёты в PDF и Excel</h3><p>Состояние команды, риски и динамика пилота — файл в один клик.</p></a>
+      <a class="feat" href="/app#/models"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg><h3>Честные модели</h3><p>Обучены на открытых научных данных, точность и ограничения опубликованы.</p></a>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="band" id="how" aria-labelledby="how-title">
+  <div class="wrap how">
+    <div class="how-copy">
+      <span class="tag-mono">Как работает</span>
+      <h2 class="title-l" id="how-title">Как AI Sports встраивается в работу штаба.</h2>
+      <p class="lead">Четыре шага от утреннего чек-ина до решения врача. Показатели считаются на признанных методиках спортивной науки.</p>
+      <a class="btn btn-primary" href="/app">Посмотреть в кабинете <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <div class="car-nav"><button class="icon-btn" type="button" data-car="prev" aria-label="Предыдущий шаг"><svg class="icon-sm" aria-hidden="true" style="transform:scaleX(-1)"><use href="#i-arrow"/></svg></button><button class="icon-btn" type="button" data-car="next" aria-label="Следующий шаг"><svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
+    </div>
+    <div class="carousel" data-carousel tabindex="0" aria-label="Шаги работы">
+      <article class="step">
+        <div class="step-ui">
+          <b class="su-t">Насколько вы готовы к тренировке?</b>
+          <div class="su-scale"><i>4</i><i>5</i><i>6</i><i class="on">7</i><i>8</i></div>
+          <b class="su-t">Сон</b>
+          <div class="su-field">7,5 часа</div>
+          <span class="su-btn">Отправить специалисту</span>
+        </div>
+        <div class="step-txt"><b>Шаг 1</b><p>Спортсмен утром отвечает с телефона, данные устройств и анализы подтягиваются сами.</p></div>
+      </article>
+      <article class="step">
+        <div class="step-ui">
+          <div class="su-ath"><i class="av a2">НК</i><span><b>Нуржан Касенов</b><em>Защитник · № 9</em></span></div>
+          <div class="su-stats"><div><b>88</b><span>готовность</span></div><div><b>62 мс</b><span>HRV</span></div><div><b>+3%</b><span>к норме</span></div></div>
+          <div class="su-bar"><i style="width:78%"></i></div><em class="su-cap">Личная норма за 28 дней</em>
+        </div>
+        <div class="step-txt"><b>Шаг 2</b><p>Данные выравниваются по времени и сравниваются с личной нормой каждого спортсмена.</p></div>
+      </article>
+      <article class="step">
+        <div class="step-ui">
+          <div class="su-row"><span class="st bad">Риск перегрузки</span><b>11,4%</b></div>
+          <div class="su-line"><span>Нагрузка за 7 дней</span><b>+52%</b></div>
+          <div class="su-line"><span>HRV к личной норме</span><b>−17%</b></div>
+          <div class="su-line"><span>Интенсивная работа</span><b>+128%</b></div>
+        </div>
+        <div class="step-txt"><b>Шаг 3</b><p>Модели оценивают готовность и риск, объясняя, какие факторы повлияли сильнее всего.</p></div>
+      </article>
+      <article class="step">
+        <div class="step-ui">
+          <b class="su-t">Скорректировать нагрузку</b>
+          <p class="su-p">Снизить объём на 15% и убрать интенсивную работу на 48 часов.</p>
+          <div class="su-actions"><span class="su-btn">Согласовать</span><span class="su-btn ghost">Отклонить</span></div>
+          <em class="su-cap">Решение попадёт в журнал</em>
+        </div>
+        <div class="step-txt"><b>Шаг 4</b><p>Врач и тренер согласуют действия. Каждое решение фиксируется, результат на контроле.</p></div>
+      </article>
     </div>
   </div>
 </section>
 
 <!-- DATA -->
-<section class="section" id="data" aria-labelledby="data-title" style="padding-top:0">
+<section class="section" id="data" aria-labelledby="data-title">
   <div class="wrap">
     <div class="section-head">
+      <span class="tag-mono">Данные</span>
       <h2 class="title-l" id="data-title">Какие данные учитываются</h2>
       <p class="lead">Лабораторная диагностика и ежедневный мониторинг — в едином профиле спортсмена.</p>
     </div>
@@ -265,9 +309,10 @@
 </section>
 
 <!-- MODULES -->
-<section class="section" id="modules" aria-labelledby="modules-title" style="padding-top:0">
+<section class="band" id="modules" aria-labelledby="modules-title">
   <div class="wrap">
     <div class="section-head">
+      <span class="tag-mono">Модули</span>
       <h2 class="title-l" id="modules-title">Шесть модулей платформы</h2>
       <p class="lead">Значения ниже — пример карточки одного спортсмена в демо.</p>
     </div>
@@ -282,27 +327,11 @@
   </div>
 </section>
 
-<!-- HOW -->
-<section class="section" id="how" aria-labelledby="how-title" style="padding-top:0">
-  <div class="wrap">
-    <div class="section-head">
-      <h2 class="title-l" id="how-title">Как это работает</h2>
-      <p class="lead">Прозрачные показатели на признанных методиках спортивной науки и модели, обученные на открытых научных данных и проверенные на спортсменах, которых они не видели.</p>
-    </div>
-    <div class="timeline">
-      <div class="t-step"><span class="dot"></span><span class="n">01</span><h3>Сбор</h3><p>Браслет, интеграции с устройствами, лабораторные анализы, RPE и утренний чек-ин.</p></div>
-      <div class="t-step"><span class="dot"></span><span class="n">02</span><h3>Единый профиль</h3><p>Данные очищаются, выравниваются по времени и сравниваются с личной нормой спортсмена.</p></div>
-      <div class="t-step"><span class="dot"></span><span class="n">03</span><h3>Скоры и сигналы</h3><p>Готовность, восстановление и риски — с объяснением факторов и качеством данных.</p></div>
-      <div class="t-step"><span class="dot"></span><span class="n">04</span><h3>Решение</h3><p>Врач и тренер согласуют действия. Каждое решение — в журнале, результат — на контроле.</p></div>
-    </div>
-    <div class="methods" aria-label="Методические основы"><span>HRV · ln rMSSD</span><span>Session RPE (Foster)</span><span>Индекс Хупера</span><span>EWMA-нагрузка</span><span>Консенсус МОК 2020</span><span>Позиции ISSN / ACSM</span><span>Athlete Burnout Questionnaire</span><span>Gradient boosting · scikit-learn</span><span>Открытые данные: Lövdal 2021, SoccerMon 2024</span></div>
-  </div>
-</section>
-
 <!-- ROLES -->
-<section class="section" id="roles" aria-labelledby="roles-title" style="padding-top:0">
+<section class="section" id="roles" aria-labelledby="roles-title">
   <div class="wrap">
     <div class="section-head">
+      <span class="tag-mono">Роли</span>
       <h2 class="title-l" id="roles-title">Что видит каждый в команде</h2>
     </div>
     <div class="roles">
@@ -323,12 +352,13 @@
 </section>
 
 <!-- PILOT -->
-<section class="section" id="pilot" aria-labelledby="pilot-title" style="padding-top:0">
+<section class="section" id="pilot" aria-labelledby="pilot-title">
   <div class="wrap">
     <div class="pilot">
       <div>
         <div class="section-head" style="margin-bottom:0">
-          <h2 class="title-l" id="pilot-title">Пилот с профессиональными командами</h2>
+          <span class="tag-mono">Пилот</span>
+      <h2 class="title-l" id="pilot-title">Пилот с профессиональными командами</h2>
           <p class="lead">На первом этапе платформа запускается как пилот с командами и спортивными организациями. Цель пилота — качество данных, проверка моделей на реальных исходах, удобство для штаба и экономика сопровождения.</p>
         </div>
         <div class="nums">
@@ -364,9 +394,10 @@
 </section>
 
 <!-- MARKET -->
-<section class="section" id="market" aria-labelledby="market-title" style="padding-top:0">
+<section class="section" id="market" aria-labelledby="market-title">
   <div class="wrap">
     <div class="section-head">
+      <span class="tag-mono">Рынок</span>
       <h2 class="title-l" id="market-title">Рынок: начинаем с Казахстана</h2>
     </div>
     <div class="market">
@@ -379,9 +410,10 @@
 </section>
 
 <!-- COMPARE -->
-<section class="section" id="compare" aria-labelledby="compare-title" style="padding-top:0">
+<section class="section" id="compare" aria-labelledby="compare-title">
   <div class="wrap compare-wrap">
     <div class="section-head" style="margin-bottom:0">
+      <span class="tag-mono">Отличие</span>
       <h2 class="title-l" id="compare-title">Чем мы отличаемся от фитнес-трекеров</h2>
       <p class="lead">Whoop, Oura, Garmin и Polar собирают данные, но не объединяют их с клиническими анализами, психологией и рекомендациями в единую систему для штаба.</p>
     </div>
@@ -404,9 +436,10 @@
 </section>
 
 <!-- TRUST -->
-<section class="section" id="trust" aria-labelledby="trust-title" style="padding-top:0">
+<section class="band" id="trust" aria-labelledby="trust-title">
   <div class="wrap">
     <div class="section-head">
+      <span class="tag-mono">Безопасность</span>
       <h2 class="title-l" id="trust-title">Как защищены данные</h2>
     </div>
     <div class="principles">
@@ -422,9 +455,10 @@
 </section>
 
 <!-- FAQ -->
-<section class="section" id="faq" aria-labelledby="faq-title" style="padding-top:0">
+<section class="section" id="faq" aria-labelledby="faq-title">
   <div class="wrap faq">
     <div class="section-head" style="margin-bottom:0">
+      <span class="tag-mono">Вопросы</span>
       <h2 class="title-l" id="faq-title">Частые вопросы</h2>
       <p class="lead">Не нашли ответ? Напишите нам — <a href="mailto:ulasanuar@gmail.com">ulasanuar@gmail.com</a></p>
     </div>
@@ -440,18 +474,23 @@
   </div>
 </section>
 
-<!-- CONTACT -->
-<section class="section" id="contact" aria-labelledby="contact-title" style="padding-top:0">
+
+<!-- CTA + CONTACT -->
+<section class="section" id="contact" aria-labelledby="contact-title">
   <div class="wrap">
-    <div class="contact">
-      <div class="contact-copy">
-        <h2 class="title-l" id="contact-title">Запустим пилот с вашей федерацией</h2>
-        <p class="lead">Расскажите о команде — подготовим предложение по пилоту и ответим на вопросы о данных и безопасности.</p>
-        <ul class="contact-list">
-          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-users"/></svg>Национальные сборные, федерации, клубы и спортивные центры</li>
-          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-mail"/></svg><span>Почта: <a href="mailto:ulasanuar@gmail.com">ulasanuar@gmail.com</a></span></li>
-          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-grid"/></svg><a href="/app">Открыть кабинет</a></li>
-        </ul>
+    <div class="cta">
+      <div class="cta-copy">
+        <span class="tag-mono dark">Начать</span>
+        <h2 id="contact-title">Готовы запустить пилот с вашей командой?</h2>
+        <p>Расскажите о команде — подготовим предложение и ответим на вопросы о данных и безопасности. Или откройте кабинет и попробуйте сами.</p>
+        <div class="cta-btns"><a class="btn btn-primary" href="/app">Открыть кабинет <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a><a class="btn btn-ghost" href="mailto:ulasanuar@gmail.com">ulasanuar@gmail.com</a></div>
+        <svg viewBox="0 0 260 150" class="ill cta-ill" aria-hidden="true">
+          <rect x="70" y="10" width="78" height="132" rx="14" class="fill-white ln"/><rect x="80" y="26" width="58" height="9" rx="3" class="fill-soft"/>
+          <g class="ln"><rect x="80" y="44" width="16" height="16" rx="4"/><rect x="101" y="44" width="16" height="16" rx="4" class="fill-sun"/><rect x="122" y="44" width="16" height="16" rx="4"/></g>
+          <rect x="80" y="68" width="58" height="10" rx="3" class="fill-soft"/><rect x="80" y="112" width="58" height="16" rx="5" class="fill-dark"/>
+          <path d="M150 70c22-6 40 4 52 22l20 30" class="ln"/><path d="M196 84c6-10 18-12 26-6" class="ln"/><path d="M150 96c18 0 30 10 38 26" class="ln"/>
+          <circle cx="210" cy="30" r="13" class="dot-dark"/><path d="M204 30l4 4 8-8" class="ln-w"/>
+        </svg>
       </div>
       <form class="form" id="lead-form" novalidate aria-describedby="form-note">
         <div class="row-2">
@@ -477,16 +516,12 @@
 
 <footer class="site-footer">
   <div class="wrap">
-    <div class="footer-grid">
-      <div class="footer-about">
-        <a class="brand" href="/" aria-label="AI Sports Precision Medicine — на главную"><svg class="brand-mark" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="10" fill="url(#g-brand)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#2a1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="brand-text"><b>AI Sports</b><small>Precision Medicine</small></span></a>
-        <p>Национальная ИИ-платформа медицинской персонализации спортсменов. Медицина. Данные. Результат.</p>
-      </div>
-      <nav class="footer-col" aria-labelledby="fc-1"><h2 id="fc-1">Платформа</h2><a href="/app">Кабинет</a><a href="/checkin">Чек-ин спортсмена</a><a href="#features">Возможности</a><a href="#pilot">Пилот</a><a href="/app#/about">Стратегия</a></nav>
-      <nav class="footer-col" aria-labelledby="fc-2"><h2 id="fc-2">Документы</h2><a href="/privacy">Политика конфиденциальности</a><a href="/cookies">Политика cookie</a><a href="/terms">Пользовательское соглашение</a><a href="/consent">Согласие на обработку ПД</a></nav>
-      <div class="footer-col"><h2>Связь</h2><a href="#contact">Запросить пилот</a><a href="mailto:ulasanuar@gmail.com">ulasanuar@gmail.com</a><button class="linklike" type="button" data-cookie-settings>Настройки cookie</button></div>
+    <div class="foot-row">
+      <span>© <span data-year>2026</span> AI Sports</span>
+      <nav class="foot-links" aria-label="Ссылки в подвале"><a href="/app">Кабинет</a><a href="/checkin">Чек-ин спортсмена</a><a href="#contact">Запросить пилот</a><a href="/privacy">Конфиденциальность</a><a href="/cookies">Cookie</a><a href="/terms">Соглашение</a><a href="/consent">Согласие на обработку ПД</a><button class="linklike" type="button" data-cookie-settings>Настройки cookie</button></nav>
     </div>
-    <div class="footer-bottom"><span>© <span data-year>2026</span> AI Sports Precision Medicine. Все права защищены.</span><span>ИИ помогает. Решение принимает специалист.</span></div>
+    <p class="foot-note">ИИ помогает. Решение принимает специалист. Платформа не является медицинским изделием.</p>
+    <div class="wordmark" aria-hidden="true"><svg viewBox="0 0 34 34"><rect width="34" height="34" rx="9" fill="currentColor"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#1a110a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AI Sports</span></div>
   </div>
 </footer>
 
