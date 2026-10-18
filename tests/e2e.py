@@ -351,6 +351,29 @@ def mobile_no_horizontal_scroll(b):
     pg.close()
 
 
+@test
+def reports_pdf_and_csv(b):
+    pg = Page(b).go("/app#/reports", 500)
+    for k in ["team", "risk", "pilot"]:
+        with pg.p.expect_download() as dl:
+            pg.p.click(f'[data-pdf="{k}"]')
+        path = Path(tempfile.mkdtemp()) / "r.pdf"
+        dl.value.save_as(path)
+        data = path.read_bytes()
+        assert dl.value.suggested_filename.endswith(".pdf") and data.startswith(b"%PDF-1.4") and data.rstrip().endswith(b"%%EOF"), k
+        assert data.count(b"/Type /Page ") >= 1 and len(data) > 50_000, k
+        with pg.p.expect_download() as dl:
+            pg.p.click(f'[data-download="{k}"]')
+        assert dl.value.suggested_filename.endswith(".csv")
+    # общее окно «Создать отчёт»: по умолчанию PDF
+    pg.p.click('[data-action="report"]')
+    with pg.p.expect_download() as dl:
+        pg.p.click("#rep-go")
+    assert dl.value.suggested_filename.endswith(".pdf")
+    pg.check_clean()
+    pg.close()
+
+
 def main():
     flt = sys.argv[1] if len(sys.argv) > 1 else ""
     todo = [t for t in TESTS if flt in t.__name__]

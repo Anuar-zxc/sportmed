@@ -449,7 +449,7 @@
     analytics: ['AI-аналитика', 'Ранние сигналы, факторы риска и планировщик нагрузки.'],
     models: ['Модели ИИ', 'Как обучены модели, насколько они точны и где их пределы. Проверка на ваших данных.'],
     recommendations: ['Рекомендации', 'Персональные действия на сегодня. Решение принимает специалист.'],
-    reports: ['Отчёты', 'Выгрузка показателей команды в CSV для Excel.'],
+    reports: ['Отчёты', 'Выгрузка показателей команды в CSV для Excel и в PDF.'],
     settings: ['Настройки', 'Рабочее пространство, роли доступа и источники данных.'],
     admin: ['Администрирование', 'Сотрудники, согласия спортсменов и журнал действий.'],
     about: ['О платформе', 'От проверенных рыночных механик — к клиническому контуру сопровождения команд.'],
@@ -1273,7 +1273,7 @@
   }
   function downloadReport(type) {
     var rows = reportRows(type);
-    var meta = [['AI Sports Precision Medicine — ' + REPORTS[type].title], ['Демо-команда · срез ' + asOfDate().toISOString().slice(0, 10)], ['Вымышленные данные. Прогнозы моделей не являются медицинскими заключениями.'], []];
+    var meta = [['AI Sports Precision Medicine — ' + REPORTS[type].title], [(isPilot() ? pilot.team.name : 'Демо-команда') + ' · срез ' + asOfDate().toISOString().slice(0, 10)], ['Вымышленные данные. Прогнозы моделей не являются медицинскими заключениями.'], []];
     function cell(c) {
       if (c == null) return '';
       var s = typeof c === 'number' ? String(c).replace('.', ',') : String(c);
@@ -1290,15 +1290,149 @@
     logEvent('report', 'Сформирован отчёт «' + REPORTS[type].title + '»');
     toast('Отчёт «' + REPORTS[type].title + '» скачан');
   }
+  /* ----- PDF-отчёт: таблица рисуется на canvas (кириллица — шрифтами системы), страницы A4 упаковываются в PDF без библиотек ----- */
+  function pdfFromJpegs(pages) {
+    // pages: [{ bytes: Uint8Array (JPEG), w, h }] → Blob application/pdf, A4 альбом 842×595 pt
+    var enc = new TextEncoder(), parts = [], offsets = [], pos = 0;
+    function push(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); pos += b.length; }
+    function obj(n, body) { offsets[n] = pos; push(n + ' 0 obj\n'); body(); push('\nendobj\n'); }
+    var n = pages.length, kids = [];
+    for (var i = 0; i < n; i++) kids.push((3 + i * 3) + ' 0 R');
+    push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+    obj(1, function () { push('<< /Type /Catalog /Pages 2 0 R >>'); });
+    obj(2, function () { push('<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + n + ' >>'); });
+    pages.forEach(function (p, i) {
+      var pg = 3 + i * 3, ct = pg + 1, im = pg + 2;
+      obj(pg, function () { push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /XObject << /Im' + i + ' ' + im + ' 0 R >> >> /Contents ' + ct + ' 0 R >>'); });
+      var cs = 'q 842 0 0 595 0 0 cm /Im' + i + ' Do Q';
+      obj(ct, function () { push('<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream'); });
+      obj(im, function () { push('<< /Type /XObject /Subtype /Image /Width ' + p.w + ' /Height ' + p.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + p.bytes.length + ' >>\nstream\n'); push(p.bytes); push('\nendstream'); });
+    });
+    var total = 3 + n * 3, xref = pos;
+    push('xref\n0 ' + total + '\n0000000000 65535 f \n');
+    for (var k = 1; k < total; k++) push(String(offsets[k]).padStart(10, '0') + ' 00000 n \n');
+    push('trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF');
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+  function renderReportPages(title, sub, rows) {
+    var S = 2.5, W = 842, H = 595, M = 36, ROW = 18, TOP = 106, BOTTOM = 30;
+    var FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, Arial, sans-serif';
+    var head = rows[0], body = rows.slice(1);
+    var meas = document.createElement('canvas').getContext('2d');
+    function f(size, w) { return (w || 400) + ' ' + size + 'px ' + FONT; }
+    function txt(v) {
+      if (v == null || v === '' || (typeof v === 'number' && v !== v)) return '—';
+      if (typeof v !== 'number') return String(v);
+      var dec = (String(v).split('.')[1] || '').length;
+      return num(v, Math.min(2, dec));
+    }
+    // колонка числовая, если большинство значений — числа: такие выравниваем вправо, включая прочерки
+    var numericCol = head.map(function (h, ci) { var n = 0, t = 0; body.forEach(function (r) { if (r[ci] != null && r[ci] !== '') { t++; if (typeof r[ci] === 'number') n++; } }); return t > 0 && n / t > 0.6; });
+    // ширины колонок — по содержимому, в пределах страницы
+    meas.font = f(8.6);
+    var natural = head.map(function (h, ci) {
+      var m = 0; body.slice(0, 200).forEach(function (r) { m = Math.max(m, meas.measureText(txt(r[ci])).width); });
+      meas.font = f(8.2, 600); var hw = meas.measureText(String(h)).width; meas.font = f(8.6);
+      // заголовок может переноситься на 2 строки, поэтому числовой колонке хватает половины его ширины
+      if (numericCol[ci]) return Math.max(m, Math.min(hw / 2 + 10, 74), 30) + 14;
+      return Math.min(Math.max(m, Math.min(hw, 110), 34) + 14, ci === 0 ? 200 : 260);
+    });
+    var avail = W - 2 * M, sum = natural.reduce(function (a, b) { return a + b; }, 0);
+    var widths;
+    if (sum <= avail) widths = natural.map(function (w) { return w + (avail - sum) * w / sum; });
+    else {
+      // сжимаем только широкие текстовые колонки, имена и числа не трогаем
+      var flex = natural.map(function (w, ci) { return ci > 0 && !numericCol[ci] && w > 90; });
+      var fixed = natural.reduce(function (a, w, ci) { return a + (flex[ci] ? 0 : w); }, 0);
+      var flexSum = natural.reduce(function (a, w, ci) { return a + (flex[ci] ? w : 0); }, 0);
+      var k = flexSum ? Math.max(0.3, (avail - fixed) / flexSum) : 1;
+      widths = natural.map(function (w, ci) { return flex[ci] ? w * k : w; });
+      var tot = widths.reduce(function (a, b) { return a + b; }, 0);
+      if (tot > avail) widths = widths.map(function (w) { return w * avail / tot; });
+    }
+    var perPage = Math.floor((H - TOP - BOTTOM - ROW) / ROW), pages = Math.max(1, Math.ceil(body.length / perPage)), out = [];
+    function clip(ctx, s, w) { if (ctx.measureText(s).width <= w) return s; while (s.length > 1 && ctx.measureText(s + '…').width > w) s = s.slice(0, -1); return s + '…'; }
+    function wrapHead(ctx, s, w) {
+      var words = String(s).split(' '), lines = [''];
+      words.forEach(function (wd) { var t = lines[lines.length - 1] ? lines[lines.length - 1] + ' ' + wd : wd; if (ctx.measureText(t).width > w && lines[lines.length - 1]) lines.push(wd); else lines[lines.length - 1] = t; });
+      return lines.slice(0, 2).map(function (l, i, a) { return i === a.length - 1 ? clip(ctx, l, w) : l; });
+    }
+    for (var p = 0; p < pages; p++) {
+      var cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+      var c = cv.getContext('2d'); c.scale(S, S);
+      c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H);
+      // шапка
+      c.fillStyle = '#f2873d'; c.fillRect(M, M - 2, 22, 22);
+      c.strokeStyle = '#2a1606'; c.lineWidth = 1.6; c.lineJoin = 'round'; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(M + 4, M + 10); c.lineTo(M + 8, M + 10); c.lineTo(M + 10, M + 5); c.lineTo(M + 13, M + 15); c.lineTo(M + 15.5, M + 8); c.lineTo(M + 18, M + 10); c.stroke();
+      c.fillStyle = '#1d1b17'; c.font = f(10.5, 700); c.textBaseline = 'middle'; c.fillText('AI Sports', M + 30, M + 4);
+      c.fillStyle = '#736b60'; c.font = f(8); c.fillText('Precision Medicine', M + 30, M + 15);
+      c.textAlign = 'right'; c.fillText('Сформирован ' + fmtTime.format(new Date()), W - M, M + 9); c.textAlign = 'left';
+      c.fillStyle = '#1d1b17'; c.font = f(17, 700); c.fillText(title, M, M + 44);
+      c.fillStyle = '#736b60'; c.font = f(9); c.fillText(sub, M, M + 62);
+      // таблица
+      var y = TOP;
+      c.fillStyle = '#f6f1e8'; c.fillRect(M, y, W - 2 * M, ROW + 6);
+      c.font = f(8.2, 600); c.fillStyle = '#45403a';
+      var x = M;
+      head.forEach(function (h, ci) {
+        var ls = wrapHead(c, h, widths[ci] - 12), right = numericCol[ci];
+        c.textAlign = right ? 'right' : 'left';
+        ls.forEach(function (l, li) { c.fillText(l, right ? x + widths[ci] - 8 : x + 6, y + (ls.length === 1 ? (ROW + 6) / 2 : 7 + li * 10)); });
+        c.textAlign = 'left'; x += widths[ci];
+      });
+      y += ROW + 6;
+      body.slice(p * perPage, (p + 1) * perPage).forEach(function (r, ri) {
+        c.font = f(8.6); x = M;
+        r.forEach(function (v, ci) {
+          var s = txt(v), isNum = numericCol[ci];
+          c.fillStyle = ci === 0 ? '#1d1b17' : '#3d3832'; if (ci === 0) c.font = f(8.6, 600); else c.font = f(8.6);
+          s = clip(c, s, widths[ci] - 12);
+          if (isNum) { c.textAlign = 'right'; c.fillText(s, x + widths[ci] - 8, y + ROW / 2); c.textAlign = 'left'; } else c.fillText(s, x + 6, y + ROW / 2);
+          x += widths[ci];
+        });
+        c.fillStyle = '#ece5da'; c.fillRect(M, y + ROW - 0.5, W - 2 * M, 0.6);
+        y += ROW;
+      });
+      // подвал
+      c.fillStyle = '#8e8579'; c.font = f(7.5);
+      c.fillText('Прогнозы моделей носят вероятностный характер и не являются медицинским заключением. Решение принимает специалист.', M, H - 20);
+      c.textAlign = 'right'; c.fillText('Стр. ' + (p + 1) + ' из ' + pages, W - M, H - 20); c.textAlign = 'left';
+      out.push(cv);
+    }
+    return out;
+  }
+  function downloadReportPdf(type) {
+    var R = REPORTS[type], rows = reportRows(type);
+    if (type === 'risk') { // в PDF — без служебных колонок ACWR и «Флаги» (они есть в CSV)
+      var drop = [rows[0].indexOf('ACWR'), rows[0].indexOf('Флаги')].filter(function (i) { return i > -1; });
+      rows = rows.map(function (r) { return r.filter(function (_, i) { return drop.indexOf(i) < 0; }); });
+    }
+    var sub = (isPilot() ? '«' + pilot.team.name + '»' : 'Демо-команда, вымышленные данные') + ' · срез на ' + fmtFull.format(asOfDate()) + ' · ' + (rows.length - 1) + ' ' + plural(rows.length - 1, 'строка', 'строки', 'строк');
+    var go = function () {
+      var canv = renderReportPages(R.title, sub, rows);
+      Promise.all(canv.map(function (cv) {
+        return new Promise(function (res) { cv.toBlob(function (b) { b.arrayBuffer().then(function (ab) { res({ bytes: new Uint8Array(ab), w: cv.width, h: cv.height }); }); }, 'image/jpeg', 0.92); });
+      })).then(function (pages) {
+        var blob = pdfFromJpegs(pages), url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = 'ai-sports_' + type + '_' + asOfDate().toISOString().slice(0, 10) + '.pdf';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        logEvent('report', 'Сформирован PDF-отчёт «' + R.title + '»');
+        toast('PDF «' + R.title + '» скачан');
+      });
+    };
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(go);
+  }
   RENDER.reports = function () {
     return pageHead('reports') + '<div class="grid g-3">' + Object.keys(REPORTS).map(function (k) {
       var R = REPORTS[k], rows = reportRows(k);
       var head = rows[0].slice(0, 3), body = rows.slice(1, 4).map(function (r) { return r.slice(0, 3); });
-      return '<article class="panel report-card"><span class="ri">' + icon(R.ic) + '</span><span class="report-meta">CSV · ' + (rows.length - 1) + ' ' + plural(rows.length - 1, 'строка', 'строки', 'строк') + ' · ' + rows[0].length + ' ' + plural(rows[0].length, 'колонка', 'колонки', 'колонок') + '</span><h3>' + R.title + '</h3><p>' + R.desc + '</p>' +
+      return '<article class="panel report-card"><span class="ri">' + icon(R.ic) + '</span><span class="report-meta">CSV и PDF · ' + (rows.length - 1) + ' ' + plural(rows.length - 1, 'строка', 'строки', 'строк') + ' · ' + rows[0].length + ' ' + plural(rows[0].length, 'колонка', 'колонки', 'колонок') + '</span><h3>' + R.title + '</h3><p>' + R.desc + '</p>' +
         '<div class="report-preview" aria-label="Предпросмотр"><table><thead><tr>' + head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + body.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' +
-        '<button class="btn btn-ghost btn-block" type="button" data-download="' + k + '">' + icon('download', 'icon-sm') + 'Сформировать отчёт</button></article>';
+        '<div class="report-actions"><button class="btn btn-ghost" type="button" data-download="' + k + '">' + icon('download', 'icon-sm') + 'CSV для Excel</button><button class="btn btn-ghost" type="button" data-pdf="' + k + '">' + icon('file', 'icon-sm') + 'PDF</button></div></article>';
     }).join('') + '</div>' +
-      '<div class="note">' + icon('info', 'icon-sm') + '<span>Файлы формируются прямо в браузере и не отправляются на сервер. Кодировка UTF-8 с разделителем «;» — открываются в Excel без настройки.</span></div>' + footerStrip();
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Файлы формируются прямо в браузере и не отправляются на сервер. CSV открывается в Excel без настройки (UTF-8, разделитель «;»), PDF — формат A4, готов к печати и отправке.</span></div>' + footerStrip();
   };
 
   /* ---------- Settings ---------- */
@@ -2447,12 +2581,16 @@
   /* ======================= Modals ======================= */
   function reportModal() {
     var t = team();
-    openModal('<div class="modal-head"><span class="mi">' + icon('file') + '</span><div><h2 id="modal-title">Создать отчёт</h2><p>Экспорт показателей команды в CSV для Excel</p></div></div>' +
-      '<div class="modal-body"><div class="field"><label for="rep-type">Тип отчёта</label><select class="select" id="rep-type">' + Object.keys(REPORTS).map(function (k) { return '<option value="' + k + '">' + REPORTS[k].title + '</option>'; }).join('') + '</select></div>' +
-      '<div class="note">' + icon('users', 'icon-sm') + '<span><b>Демо-команда</b><br>' + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + ' · срез на ' + fmtFull.format(asOfDate()) + '</span></div>' +
+    openModal('<div class="modal-head"><span class="mi">' + icon('file') + '</span><div><h2 id="modal-title">Создать отчёт</h2><p>Экспорт показателей команды в PDF или CSV для Excel</p></div></div>' +
+      '<div class="modal-body"><div class="field"><span class="label" id="rep-fmt-l">Формат</span><div class="seg" role="radiogroup" aria-labelledby="rep-fmt-l" id="rep-fmt"><button type="button" role="radio" aria-pressed="true" aria-checked="true" data-fmt="pdf">PDF</button><button type="button" role="radio" aria-pressed="false" aria-checked="false" data-fmt="csv">CSV для Excel</button></div></div><div class="field"><label for="rep-type">Тип отчёта</label><select class="select" id="rep-type">' + Object.keys(REPORTS).map(function (k) { return '<option value="' + k + '">' + REPORTS[k].title + '</option>'; }).join('') + '</select></div>' +
+      '<div class="note">' + icon('users', 'icon-sm') + '<span><b>' + (isPilot() ? esc(pilot.team.name) : 'Демо-команда') + '</b><br>' + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + ' · срез на ' + fmtFull.format(asOfDate()) + '</span></div>' +
       '<p class="muted" style="margin:0;font-size:12.5px">' + (isPilot() ? 'Экспорт содержит срез на выбранную дату. Прогнозы моделей не являются медицинским заключением.' : 'Экспорт содержит демонстрационный срез, а не исторические измерения или медицинские заключения.') + '</p></div>' +
       '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="button" id="rep-go">' + icon('download', 'icon-sm') + 'Скачать отчёт</button></div>', {
-      mount: function (m) { m.querySelector('#rep-go').addEventListener('click', function () { downloadReport(m.querySelector('#rep-type').value); closeModal(); }); }
+      mount: function (m) {
+        var fmt = 'pdf';
+        m.querySelectorAll('[data-fmt]').forEach(function (b) { b.addEventListener('click', function () { fmt = b.getAttribute('data-fmt'); m.querySelectorAll('[data-fmt]').forEach(function (x) { var on = x === b; x.setAttribute('aria-pressed', String(on)); x.setAttribute('aria-checked', String(on)); }); }); });
+        m.querySelector('#rep-go').addEventListener('click', function () { var k = m.querySelector('#rep-type').value; if (fmt === 'pdf') downloadReportPdf(k); else downloadReport(k); closeModal(); });
+      }
     });
   }
 
@@ -2795,6 +2933,8 @@
     if (rf) { state.recFilter = rf.getAttribute('data-recf'); save(); render(); return; }
     var dl = t.closest('[data-download]');
     if (dl) { downloadReport(dl.getAttribute('data-download')); return; }
+    var dp = t.closest('[data-pdf]');
+    if (dp) { downloadReportPdf(dp.getAttribute('data-pdf')); return; }
     var ts = t.closest('[data-theme-set]');
     if (ts) { state.theme = ts.getAttribute('data-theme-set'); save(); applyTheme(); render(); return; }
     var rs = t.closest('[data-role-set]');
