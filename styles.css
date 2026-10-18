@@ -13,11 +13,11 @@
   --line-strong: rgba(80, 55, 20, 0.15);
   --text: #1d1b17;
   --text-2: #45403a;
-  --muted: #736b60;
-  --faint: #a1988b;
+  --muted: #675c50;
+  --faint: #6f655a;
 
   /* акцент (имена токенов сохранены ради совместимости): --violet — текст/иконки, --violet-strong — заливки */
-  --violet: #b4531a;
+  --violet: #a84c15;
   --violet-strong: #f2873d;
   --violet-soft: rgba(255, 160, 90, 0.16);
   --violet-line: rgba(235, 125, 55, 0.32);
@@ -81,7 +81,7 @@
   --text: #f6f1e9;
   --text-2: #d9d1c4;
   --muted: #a89e8f;
-  --faint: #7b7367;
+  --faint: #8f877a;
 
   --violet: #ffb27a;
   --violet-strong: #ff9f5c;

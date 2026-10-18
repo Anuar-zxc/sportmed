@@ -45,6 +45,9 @@ jobs:
       - name: Сквозные тесты в браузере (CSP как в продакшене)
         run: python tests/e2e.py
 
+      - name: Доступность WCAG 2.1 AA (axe-core, все страницы, обе темы)
+        run: python tests/a11y.py
+
       - name: Скриншоты упавших тестов
         if: failure()
         uses: actions/upload-artifact@v5

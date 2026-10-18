@@ -523,11 +523,24 @@
     if (MOUNT[page]) MOUNT[page]();
     animateNumbers(view);
     mountLive(view);
+    a11yScrollRegions(view);
     view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter');
     updateShell();
     document.body.classList.remove('side-open');
     var st = document.querySelector('.side-toggle');
     if (st) st.setAttribute('aria-expanded', 'false');
+  }
+
+  /* Прокручиваемые таблицы доступны с клавиатуры (WCAG 2.1.1): фокус и имя региона по подписи таблицы */
+  function a11yScrollRegions(root) {
+    var wraps = root.querySelectorAll('.table-wrap');
+    for (var i = 0; i < wraps.length; i++) {
+      var w = wraps[i];
+      if (w.scrollWidth <= w.clientWidth + 1) { w.removeAttribute('tabindex'); w.removeAttribute('role'); continue; }
+      var cap = w.querySelector('caption'), th = w.querySelector('th');
+      w.setAttribute('tabindex', '0'); w.setAttribute('role', 'region');
+      w.setAttribute('aria-label', 'Таблица' + (cap ? ': ' + cap.textContent.trim() : th ? ': ' + th.textContent.trim() : '') + ' — прокручивается по горизонтали');
+    }
   }
 
   /* ======================= Pages ======================= */
@@ -953,9 +966,9 @@
         }).join('') + '</ul>' +
       '</div>' +
       '<dl class="today-stats">' +
-        '<div><dt>Восстановление</dt><dd>' + (t.recovery == null ? '—' : t.recovery) + '<small>/100</small></dd><p>' + deltaTxt(dV, 'за неделю') + '</p>' + sparkline(t.series('recovery', 14), 'var(--s2)') + '</div>' +
-        '<div><dt>Ранние сигналы</dt><dd>' + t.signals.length + '</dd><p>' + plural(t.signals.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' с отклонениями</p>' + sparkline(t.series('risk', 14), 'var(--s1)') + '</div>' +
-        '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small></dd><p>на 7 дней, по модели</p></div>' +
+        '<div><dt>Восстановление</dt><dd>' + (t.recovery == null ? '—' : t.recovery) + '<small>/100</small><span class="ts-note">' + deltaTxt(dV, 'за неделю') + '</span>' + sparkline(t.series('recovery', 14), 'var(--s2)') + '</dd></div>' +
+        '<div><dt>Ранние сигналы</dt><dd>' + t.signals.length + '<span class="ts-note">' + plural(t.signals.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' с отклонениями</span>' + sparkline(t.series('risk', 14), 'var(--s1)') + '</dd></div>' +
+        '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small><span class="ts-note">на 7 дней, по модели</span></dd></div>' +
       '</dl>' +
     '</section>';
   }
@@ -1045,7 +1058,7 @@
   function hasProfile() { return !!(state.profile && state.profile.name); }
   function welcomeScreen() {
     var root = document.getElementById('welcome');
-    if (!root) { root = document.createElement('div'); root.id = 'welcome'; root.className = 'welcome'; document.body.appendChild(root); }
+    if (!root) { root = document.createElement('div'); root.id = 'welcome'; root.className = 'welcome'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-labelledby', 'wc-title'); document.body.appendChild(root); }
     document.body.classList.add('has-welcome');
     var roles = Object.keys(ROLES).map(function (k) { return '<label class="wc-role"><input type="radio" name="wc-role" value="' + k + '"' + (k === 'doctor' ? ' checked' : '') + '><span>' + ROLES[k].title + '</span></label>'; }).join('');
     root.innerHTML =
@@ -1063,7 +1076,7 @@
         '<p class="wc-tag">Браслет измеряет ночью. Утром решение принимаете вы.</p>' +
       '</div>' +
       '<form class="wc-form" id="wc-form" novalidate>' +
-        '<h1>Добро пожаловать в кабинет</h1>' +
+        '<h1 id="wc-title">Добро пожаловать в кабинет</h1>' +
         '<p class="wc-sub">Представьтесь — имя появится в шапке, журнале действий и отчётах. Всё хранится только на этом устройстве.</p>' +
         '<div class="field"><label for="wc-name">Имя и фамилия</label><input class="input" id="wc-name" maxlength="60" autocomplete="name" placeholder="Например, Ербол Сапаров" required aria-describedby="wc-err"><span class="err" id="wc-err"></span></div>' +
         '<div class="field"><span class="label">Ваша роль</span><div class="wc-roles" role="radiogroup" aria-label="Роль">' + roles + '</div></div>' +
@@ -1579,7 +1592,7 @@
     return pageHead('reports') + '<div class="grid g-3">' + Object.keys(REPORTS).map(function (k) {
       var R = REPORTS[k], rows = reportRows(k);
       var head = rows[0].slice(0, 3), body = rows.slice(1, 4).map(function (r) { return r.slice(0, 3); });
-      return '<article class="panel report-card"><span class="ri">' + icon(R.ic) + '</span><span class="report-meta">CSV и PDF · ' + (rows.length - 1) + ' ' + plural(rows.length - 1, 'строка', 'строки', 'строк') + ' · ' + rows[0].length + ' ' + plural(rows[0].length, 'колонка', 'колонки', 'колонок') + '</span><h3>' + R.title + '</h3><p>' + R.desc + '</p>' +
+      return '<article class="panel report-card"><span class="ri">' + icon(R.ic) + '</span><span class="report-meta">CSV и PDF · ' + (rows.length - 1) + ' ' + plural(rows.length - 1, 'строка', 'строки', 'строк') + ' · ' + rows[0].length + ' ' + plural(rows[0].length, 'колонка', 'колонки', 'колонок') + '</span><h2 class="h3">' + R.title + '</h2><p>' + R.desc + '</p>' +
         '<div class="report-preview" aria-label="Предпросмотр"><table><thead><tr>' + head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + body.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' +
         '<div class="report-actions"><button class="btn btn-ghost" type="button" data-download="' + k + '">' + icon('download', 'icon-sm') + 'CSV для Excel</button><button class="btn btn-ghost" type="button" data-pdf="' + k + '">' + icon('file', 'icon-sm') + 'PDF</button></div></article>';
     }).join('') + '</div>' +
