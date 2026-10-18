@@ -97,7 +97,7 @@ def create_pilot(pg: Page, roster="Спортсмен A; нападающий; 7
     pg.p.fill("#pw-name", "Тестовая команда")
     pg.p.fill("#pw-roster", roster)
     pg.p.click('#pw-form button[type="submit"]')
-    pg.p.wait_for_function("document.getElementById('tc-name') && document.getElementById('tc-name').textContent.indexOf('Тестовая команда') >= 0", timeout=10000)
+    pg.p.wait_for_function("() => !!document.getElementById('tc-name') && document.getElementById('tc-name').textContent.indexOf('Тестовая команда') >= 0", timeout=10000)
     pg.p.wait_for_selector("#modal-root .modal", state="detached", timeout=10000) if pg.p.locator("#modal-root .modal").count() else None
 
 
@@ -328,7 +328,7 @@ def print_report_and_offline(b):
     pg.p.emulate_media(media="print")
     assert pg.p.is_visible(".print-head") and not pg.p.is_visible(".sidebar")
     pg.p.emulate_media(media="screen")
-    pg.p.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.ready.then(() => true)", timeout=8000)
+    pg.p.wait_for_function("() => navigator.serviceWorker.ready.then(() => true)", timeout=8000)
     pg.p.reload()
     pg.p.wait_for_timeout(800)
     pg.ctx.set_offline(True)
@@ -344,9 +344,9 @@ def mobile_no_horizontal_scroll(b):
     pg = Page(b, mobile=True)
     for path in ["/", "/app#/overview", "/app#/twin", "/app#/settings", "/checkin", "/privacy"]:
         pg.go(path, 400)
-        w = pg.p.evaluate("[document.documentElement.scrollWidth, window.innerWidth]")
-        pg.p.evaluate("window.scrollTo(400, 0)")
-        assert pg.p.evaluate("window.scrollX") == 0, f"{path}: горизонтальная прокрутка {w}"
+        w = pg.p.evaluate("() => [document.documentElement.scrollWidth, window.innerWidth]")
+        pg.p.evaluate("() => window.scrollTo(400, 0)")
+        assert pg.p.evaluate("() => window.scrollX") == 0, f"{path}: горизонтальная прокрутка {w}"
     pg.check_clean()
     pg.close()
 
