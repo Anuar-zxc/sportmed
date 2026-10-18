@@ -160,7 +160,7 @@
     el.setAttribute('aria-describedby', 'cookie-desc');
     el.innerHTML =
       '<h2 id="cookie-title">' + svg('cookie') + 'Мы бережём ваши данные</h2>' +
-      '<p id="cookie-desc">Сайт использует только необходимое хранилище браузера: чтобы запомнить ваш выбор и настройки кабинета. С вашего согласия включим обезличенную статистику посещений — без cookie и рекламных трекеров. Подробнее — в <a href="/cookies">Политике cookie</a>.</p>' +
+      '<p id="cookie-desc">Только необходимое хранилище браузера — для ваших настроек. С вашего согласия добавим обезличенную статистику посещений, без cookie и трекеров. <a href="/cookies">Подробнее</a>.</p>' +
       '<div class="cookie-prefs" id="cookie-prefs">' +
         '<div class="pref"><div><b>Необходимые</b><span>Работа сайта, ваш выбор и настройки кабинета. Всегда включены.</span></div><span class="switch"><input type="checkbox" checked disabled aria-label="Необходимые — всегда включены"><span class="track"></span></span></div>' +
         '<div class="pref"><div><b>Аналитика</b><span>Обезличенная статистика посещений (Vercel Web Analytics), без cookie.</span></div><span class="switch"><input type="checkbox" id="cookie-analytics" aria-label="Аналитика"><span class="track"></span></span></div>' +
