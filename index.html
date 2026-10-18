@@ -252,51 +252,68 @@
 
 <!-- HOW -->
 <section class="band" id="how" aria-labelledby="how-title">
-  <div class="wrap how">
-    <div class="how-copy">
-      <span class="tag-mono">Как работает</span>
-      <h2 class="title-l" id="how-title">Как AI Sports встраивается в работу штаба.</h2>
-      <p class="lead">Четыре шага от утреннего чек-ина до решения врача. Показатели считаются на признанных методиках спортивной науки.</p>
+  <div class="wrap">
+    <div class="how-head">
+      <div>
+        <span class="tag-mono">Как работает</span>
+        <h2 class="title-l" id="how-title">От утреннего чек-ина до решения врача — четыре шага.</h2>
+      </div>
       <a class="btn btn-primary" href="/app">Посмотреть в кабинете <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
-      <div class="car-nav"><button class="icon-btn" type="button" data-car="prev" aria-label="Предыдущий шаг"><svg class="icon-sm" aria-hidden="true" style="transform:scaleX(-1)"><use href="#i-arrow"/></svg></button><button class="icon-btn" type="button" data-car="next" aria-label="Следующий шаг"><svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
     </div>
-    <div class="carousel" data-carousel tabindex="0" aria-label="Шаги работы">
-      <article class="step">
-        <div class="step-ui">
-          <b class="su-t">Насколько вы готовы к тренировке?</b>
-          <div class="su-scale"><i>4</i><i>5</i><i>6</i><i class="on">7</i><i>8</i></div>
-          <b class="su-t">Сон</b>
-          <div class="su-field">7,5 часа</div>
-          <span class="su-btn">Отправить специалисту</span>
+    <div class="steps">
+
+      <article class="stp">
+        <div class="stp-ui ui-checkin" aria-hidden="true">
+          <div class="ph">
+            <div class="ph-bar"><span>9:41</span><i></i></div>
+            <b class="ph-q">Насколько вы готовы к тренировке?</b>
+            <div class="ph-scale"><i>4</i><i>5</i><i>6</i><i class="on">7</i><i>8</i><i>9</i></div>
+            <b class="ph-q">Сон</b>
+            <div class="ph-field">7,5 часа</div>
+            <span class="ph-btn">Отправить специалисту</span>
+          </div>
+          <div class="ui-band-chip"><img src="band-v500-s.webp" alt="" width="520" height="520" loading="lazy"><span><b>Браслет</b><em>ночь: пульс, HRV, SpO₂</em></span></div>
         </div>
-        <div class="step-txt"><b>Шаг 1</b><p>Спортсмен утром отвечает с телефона, данные устройств и анализы подтягиваются сами.</p></div>
+        <div class="stp-txt"><span class="stp-n">01</span><h3>Данные приходят сами</h3><p>Спортсмен отвечает с телефона за минуту, браслет и анализы подтягиваются без участия штаба.</p></div>
       </article>
-      <article class="step">
-        <div class="step-ui">
-          <div class="su-ath"><i class="av a2">НК</i><span><b>Нуржан Касенов</b><em>Защитник · № 9</em></span></div>
-          <div class="su-stats"><div><b>88</b><span>готовность</span></div><div><b>62 мс</b><span>HRV</span></div><div><b>+3%</b><span>к норме</span></div></div>
-          <div class="su-bar"><i style="width:78%"></i></div><em class="su-cap">Личная норма за 28 дней</em>
+
+      <article class="stp">
+        <div class="stp-ui ui-profile" aria-hidden="true">
+          <div class="up-head"><i class="av a2">НК</i><span><b>Нуржан Касенов</b><em>Защитник · № 9</em></span><span class="st ok">Готов</span></div>
+          <div class="up-rings">
+            <div class="mini-ring" style="--p:88;--c:var(--st-ok)"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27"/><circle cx="32" cy="32" r="27" class="f"/></svg><b>88</b><span>готовность</span></div>
+            <div class="mini-ring" style="--p:84;--c:var(--st-ok)"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27"/><circle cx="32" cy="32" r="27" class="f"/></svg><b>84</b><span>восстановл.</span></div>
+            <div class="mini-ring" style="--p:92;--c:var(--s2)"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27"/><circle cx="32" cy="32" r="27" class="f"/></svg><b>7:29</b><span>сон</span></div>
+          </div>
+          <div class="up-live"><span class="ld"></span><em>Браслет на связи · пульс покоя 51</em><svg viewBox="0 0 300 40" preserveAspectRatio="none"><path class="ecg-mini" d="M0 20H40l4-3 4 3 5-14 5 24 5-10h40l4-3 4 3 5-14 5 24 5-10h40l4-3 4 3 5-14 5 24 5-10h40l4-3 4 3 5-14 5 24 5-10H300"/></svg></div>
         </div>
-        <div class="step-txt"><b>Шаг 2</b><p>Данные выравниваются по времени и сравниваются с личной нормой каждого спортсмена.</p></div>
+        <div class="stp-txt"><span class="stp-n">02</span><h3>Профиль против личной нормы</h3><p>Все данные выравниваются по времени и сравниваются не со средним, а с нормой этого спортсмена за 28 дней.</p></div>
       </article>
-      <article class="step">
-        <div class="step-ui">
-          <div class="su-row"><span class="st bad">Риск перегрузки</span><b>11,4%</b></div>
-          <div class="su-line"><span>Нагрузка за 7 дней</span><b>+52%</b></div>
-          <div class="su-line"><span>HRV к личной норме</span><b>−17%</b></div>
-          <div class="su-line"><span>Интенсивная работа</span><b>+128%</b></div>
+
+      <article class="stp">
+        <div class="stp-ui ui-risk" aria-hidden="true">
+          <div class="ur-top"><span><em>Риск травмы · 7 дней</em><b>11,4%</b></span><span class="st bad">×1,3 к среднему</span></div>
+          <div class="ur-f"><span>Нагрузка за 7 дней</span><i><b style="--w:78%"></b></i><em>+52%</em></div>
+          <div class="ur-f"><span>HRV к личной норме</span><i><b style="--w:46%"></b></i><em>−17%</em></div>
+          <div class="ur-f"><span>Интенсивная работа</span><i><b style="--w:62%"></b></i><em>+128%</em></div>
+          <div class="ur-f ok"><span>Сон</span><i><b style="--w:18%"></b></i><em>в норме</em></div>
         </div>
-        <div class="step-txt"><b>Шаг 3</b><p>Модели оценивают готовность и риск, объясняя, какие факторы повлияли сильнее всего.</p></div>
+        <div class="stp-txt"><span class="stp-n">03</span><h3>Модель объясняет, а не пугает</h3><p>Риск и готовность считаются моделями на открытых данных, и каждый прогноз раскладывается на факторы.</p></div>
       </article>
-      <article class="step">
-        <div class="step-ui">
-          <b class="su-t">Скорректировать нагрузку</b>
-          <p class="su-p">Снизить объём на 15% и убрать интенсивную работу на 48 часов.</p>
-          <div class="su-actions"><span class="su-btn">Согласовать</span><span class="su-btn ghost">Отклонить</span></div>
-          <em class="su-cap">Решение попадёт в журнал</em>
+
+      <article class="stp">
+        <div class="stp-ui ui-decide" aria-hidden="true">
+          <div class="ud-card">
+            <span class="ud-tag">Нагрузка</span>
+            <b>Скорректировать нагрузку</b>
+            <p>Ерлан Жаксылыков — снизить объём на 15% и убрать интенсивную работу на 48 часов.</p>
+            <div class="ud-btns"><span class="ud-ok"><svg class="icon-sm"><use href="#i-check"/></svg>Согласовать</span><span class="ud-no">Отклонить</span></div>
+          </div>
+          <div class="ud-log"><i class="av a1">ЕС</i><span><b>Ербол Сапаров</b> согласовал · 07:42</span><svg class="icon-sm ud-chk"><use href="#i-check"/></svg></div>
         </div>
-        <div class="step-txt"><b>Шаг 4</b><p>Врач и тренер согласуют действия. Каждое решение фиксируется, результат на контроле.</p></div>
+        <div class="stp-txt"><span class="stp-n">04</span><h3>Решение остаётся за врачом</h3><p>Врач и тренер согласуют или отклоняют действия, каждое решение попадает в журнал с подписью и временем.</p></div>
       </article>
+
     </div>
   </div>
 </section>
