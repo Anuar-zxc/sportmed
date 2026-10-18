@@ -341,7 +341,8 @@
     m.addEventListener('keydown', trapKeys(m, closeModal));
     if (opts.mount) opts.mount(m);
     var f = m.querySelector(opts.focus || 'input, select, textarea, button:not(.modal-close)');
-    setTimeout(function () { (f || m.querySelector('button')).focus(); }, 20);
+    // автофокус — только если пользователь ещё не начал работать в окне (не перехватываем фокус при быстром вводе)
+    setTimeout(function () { if (m.contains(document.activeElement)) return; (f || m.querySelector('button')).focus(); }, 20);
     return m;
   }
   function closeModal() {
