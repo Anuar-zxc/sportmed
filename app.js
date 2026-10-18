@@ -471,7 +471,8 @@
     try {
       html = RENDER[page]();
     } catch (err) {
-      html = '<div class="panel panel-body"><b>Не удалось отобразить раздел.</b><p class="muted">Попробуйте сбросить демо-данные в настройках.</p></div>';
+      if (window.console) console.error('render ' + page + ':', err);
+      html = '<div class="panel panel-body"><b>Не удалось отобразить раздел.</b><p class="muted">' + (isPilot() ? 'Обновите страницу. Если не помогло — напишите нам: ' + EMAIL + '. Ваши данные не пострадали.' : 'Попробуйте сбросить демо-данные в настройках.') + '</p></div>';
       if (window.console) console.error(err);
     }
     view.innerHTML = html;

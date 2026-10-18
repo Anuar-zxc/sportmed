@@ -21,10 +21,19 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import server  # noqa: E402
 
-SRV, BASE = server.start(0)
+if os.environ.get("E2E_BASE"):  # прогон против развёрнутого сайта: E2E_BASE=https://sportmed-eight.vercel.app
+    SRV, BASE = None, os.environ["E2E_BASE"].rstrip("/")
+else:
+    SRV, BASE = server.start(0)
 EXE = os.environ.get("PW_CHROMIUM") or (("/opt/pw-browsers/chromium") if Path("/opt/pw-browsers/chromium").exists() else None)
 
 TESTS = []
+ROUTE_READY = """(p) => {
+  const sel = '[data-route="' + p + '"]';
+  return !document.querySelector(sel) || !!document.querySelector(sel + '[aria-current="page"]');
+}"""
+OPEN = []  # открытые страницы — для скриншота при падении
+ART = Path(__file__).resolve().parent / "artifacts"
 
 
 def test(fn):
@@ -41,6 +50,7 @@ class Page:
         # согласие на cookie заранее — баннер не перекрывает кнопки
         self.ctx.add_init_script("try{localStorage.getItem('asp_consent')||localStorage.setItem('asp_consent',JSON.stringify({v:2,necessary:true,analytics:false,ts:Date.now()}))}catch(e){}")
         self.p = self.ctx.new_page()
+        OPEN.append(self)
         self.errors = []
         self.p.on("pageerror", lambda e: self.errors.append("pageerror: " + str(e)))
         self.p.on("console", self._console)
@@ -62,6 +72,10 @@ class Page:
 
     def go(self, path, wait=500):
         self.p.goto(BASE + path)
+        self.p.wait_for_load_state("domcontentloaded")
+        if "#/" in path:  # смена только «#» не перезагружает страницу — ждём, пока роутер отрисует раздел
+            page = path.split("#/")[1].split("/")[0]
+            self.p.wait_for_function(ROUTE_READY, arg=page, timeout=10000)
         self.p.wait_for_timeout(wait)
         return self
 
@@ -72,6 +86,8 @@ class Page:
         assert not self.errors, "ошибки в консоли:\n  " + "\n  ".join(self.errors[:10])
 
     def close(self):
+        if self in OPEN:
+            OPEN.remove(self)
         self.ctx.close()
 
 
@@ -81,7 +97,8 @@ def create_pilot(pg: Page, roster="Спортсмен A; нападающий; 7
     pg.p.fill("#pw-name", "Тестовая команда")
     pg.p.fill("#pw-roster", roster)
     pg.p.click('#pw-form button[type="submit"]')
-    pg.p.wait_for_timeout(400)
+    pg.p.wait_for_function("document.getElementById('tc-name') && document.getElementById('tc-name').textContent.indexOf('Тестовая команда') >= 0", timeout=10000)
+    pg.p.wait_for_selector("#modal-root .modal", state="detached", timeout=10000) if pg.p.locator("#modal-root .modal").count() else None
 
 
 def make_reply(browser, invite, readiness="3"):
@@ -349,8 +366,22 @@ def main():
                 failed += 1
                 print(f"  FAIL  {t.__name__}: {e}")
                 traceback.print_exc(limit=3)
+                ART.mkdir(exist_ok=True)
+                for i, pg in enumerate(list(OPEN)):
+                    try:
+                        pg.p.screenshot(path=str(ART / f"{t.__name__}-{i}.png"), full_page=True)
+                        (ART / f"{t.__name__}-{i}.txt").write_text(pg.p.url + "\n" + "\n".join(pg.errors) + "\n\n" + pg.p.inner_text("body"), encoding="utf-8")
+                    except Exception:  # noqa: BLE001
+                        pass
+            finally:
+                for pg in list(OPEN):
+                    try:
+                        pg.close()
+                    except Exception:  # noqa: BLE001
+                        pass
         b.close()
-    SRV.shutdown()
+    if SRV:
+        SRV.shutdown()
     print(f"\n{len(todo) - failed} из {len(todo)} тестов пройдено")
     sys.exit(1 if failed else 0)
 
