@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Утренний чек-ин — AI Sports</title>
+<meta name="description" content="Короткий утренний чек-ин для спортсмена: самочувствие, сон и вчерашняя тренировка. Ответ шифруется и отправляется вашему специалисту.">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b0814">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="checkin.webmanifest">
+<script src="theme-init.js"></script>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="checkin.css">
+</head>
+<body class="ci-body">
+<main class="ci-wrap" id="main">
+  <header class="ci-head">
+    <span class="brand"><svg class="brand-mark" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="g-b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b18bff"/><stop offset="1" stop-color="#f4a261"/></linearGradient></defs><rect width="34" height="34" rx="10" fill="url(#g-b)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#14091f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="brand-text"><b>AI Sports</b><small>Утренний чек-ин</small></span></span>
+  </header>
+
+  <section id="ci-error" class="ci-card" hidden>
+    <h1 class="ci-title">Ссылка не работает</h1>
+    <p class="ci-sub" id="ci-error-text">Похоже, ссылка повреждена или неполная. Попросите у специалиста новую персональную ссылку.</p>
+  </section>
+
+  <form id="ci-form" class="ci-card" novalidate hidden>
+    <div class="ci-intro">
+      <h1 class="ci-title" id="ci-hello">Доброе утро!</h1>
+      <p class="ci-sub">Минута на ответы — и специалист увидит, как вы сегодня. Ответ шифруется: прочитать его сможет только ваша команда.</p>
+    </div>
+
+    <fieldset class="ci-q">
+      <legend>За какой день</legend>
+      <div class="seg ci-seg" role="radiogroup" aria-label="День чек-ина">
+        <button type="button" role="radio" data-day="0" aria-checked="true">Сегодня</button>
+        <button type="button" role="radio" data-day="1" aria-checked="false">Вчера</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="readiness" data-min="0" data-max="10">
+      <legend>Насколько вы готовы к тренировке?</legend>
+      <div class="ci-scale ci-scale-11" role="radiogroup" aria-label="Готовность от 0 до 10"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Совсем не готов</span><span>Полностью готов</span></div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="fatigue" data-min="1" data-max="5">
+      <legend>Усталость</legend>
+      <div class="ci-scale" role="radiogroup" aria-label="Усталость от 1 до 5"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Нет</span><span>Сильная</span></div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="soreness" data-min="1" data-max="5">
+      <legend>Мышечная боль</legend>
+      <div class="ci-scale" role="radiogroup" aria-label="Мышечная боль от 1 до 5"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Нет</span><span>Сильная</span></div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="sleepq" data-min="1" data-max="5">
+      <legend>Качество сна</legend>
+      <div class="ci-scale" role="radiogroup" aria-label="Качество сна от 1 до 5"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Плохое</span><span>Отличное</span></div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="stress" data-min="1" data-max="5">
+      <legend>Стресс</legend>
+      <div class="ci-scale" role="radiogroup" aria-label="Стресс от 1 до 5"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Низкий</span><span>Высокий</span></div>
+    </fieldset>
+
+    <fieldset class="ci-q" data-scale="mood" data-min="1" data-max="5">
+      <legend>Настроение</legend>
+      <div class="ci-scale" role="radiogroup" aria-label="Настроение от 1 до 5"></div>
+      <div class="ci-ends" aria-hidden="true"><span>Плохое</span><span>Отличное</span></div>
+    </fieldset>
+
+    <div class="ci-q">
+      <label class="ci-label" for="ci-sleeph">Сколько часов вы спали?</label>
+      <input class="input ci-num" id="ci-sleeph" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="например, 7,5">
+    </div>
+
+    <fieldset class="ci-q">
+      <legend>Вчерашняя тренировка</legend>
+      <label class="check ci-rest"><input type="checkbox" id="ci-rest"> Был день отдыха</label>
+      <div class="ci-pair" id="ci-train">
+        <div><label class="ci-label" for="ci-rpe">Тяжесть, 0–10</label><input class="input ci-num" id="ci-rpe" type="text" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="0–10"></div>
+        <div><label class="ci-label" for="ci-dur">Минут</label><input class="input ci-num" id="ci-dur" type="text" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="например, 90"></div>
+      </div>
+      <p class="ci-hint">Тяжесть — насколько тяжело было в целом: 0 — совсем легко, 10 — максимально тяжело.</p>
+    </fieldset>
+
+    <div class="ci-q">
+      <label class="ci-label" for="ci-note">Что важно знать специалисту? <span class="muted">(по желанию)</span></label>
+      <textarea class="textarea" id="ci-note" maxlength="300" rows="3" placeholder="Например: тянет заднюю поверхность бедра"></textarea>
+    </div>
+
+    <p class="err" id="ci-err" role="alert"></p>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="ci-submit">Готово — подготовить ответ</button>
+    <p class="ci-foot">Ссылка запомнена на этом телефоне — добавьте страницу на главный экран, чтобы открывать чек-ин в одно касание. <button class="linklike inline-link" type="button" id="ci-forget">Это не мой телефон — забыть</button></p>
+    <p class="ci-foot">При острой боли, травме или плохом самочувствии не ждите — сразу сообщите врачу команды. Этот опрос не является медицинской диагностикой. <a href="/privacy#p4">Как защищены ответы</a></p>
+  </form>
+
+  <section id="ci-done" class="ci-card" hidden>
+    <div class="ci-ok" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>
+    <h1 class="ci-title">Ответ готов</h1>
+    <p class="ci-sub">Отправьте его специалисту — так же, как вы получили ссылку. Внутри зашифрованные данные: в мессенджере они выглядят как набор символов.</p>
+    <div class="ci-actions">
+      <button class="btn btn-primary btn-lg btn-block" type="button" id="ci-share">Отправить специалисту</button>
+      <button class="btn btn-ghost btn-block" type="button" id="ci-copy">Скопировать ссылку-ответ</button>
+      <div class="ci-msgr">
+        <a class="btn btn-ghost" id="ci-tg" href="#" target="_blank" rel="noopener noreferrer">Telegram</a>
+        <a class="btn btn-ghost" id="ci-wa" href="#" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+      </div>
+    </div>
+    <p class="ci-sub" id="ci-copied" role="status" aria-live="polite"></p>
+    <button class="btn btn-quiet btn-block" type="button" id="ci-again">Исправить ответы</button>
+  </section>
+</main>
+<script src="asp-crypto.js"></script>
+<script src="checkin.js"></script>
+<script src="sw-register.js"></script>
+</body>
+</html>

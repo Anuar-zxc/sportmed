@@ -1,15 +1,40 @@
 {
   "name": "AI Sports Precision Medicine",
   "short_name": "AI Sports",
-  "description": "Национальная ИИ-платформа медицинской персонализации спортсменов",
+  "description": "Платформа здоровья и готовности спортсменов: чек-ины, нагрузка и прогнозы моделей ИИ",
   "lang": "ru",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#0b0814",
   "theme_color": "#0b0814",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/app",
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Обзор команды",
+      "url": "/app#/overview"
+    },
+    {
+      "name": "Цифровой двойник",
+      "url": "/app#/twin"
+    }
   ]
 }

@@ -1,0 +1,17 @@
+{
+  "name": "Чек-ин AI Sports",
+  "short_name": "Чек-ин",
+  "description": "Утренний чек-ин спортсмена: самочувствие, сон и тренировка за минуту",
+  "lang": "ru",
+  "id": "/checkin",
+  "start_url": "/checkin",
+  "scope": "/checkin",
+  "display": "standalone",
+  "background_color": "#0b0814",
+  "theme_color": "#0b0814",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

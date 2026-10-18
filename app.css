@@ -203,6 +203,9 @@ button.team-card:hover { border-color: var(--line-strong); background: var(--pan
 .person { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .person b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .person span { display: block; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person b { color: var(--text); }
+.person > .avatar { display: grid; font-size: 12.5px; color: var(--text); overflow: visible; }
+.person > span:not(.avatar) { min-width: 0; }
 
 .list { display: flex; flex-direction: column; }
 .list-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 20px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; }
@@ -503,3 +506,61 @@ button.list-row:hover, a.list-row:hover { background: var(--hover); }
 .tl-row .input { min-height: 38px; padding: 7px 10px; font-size: 14px; text-align: center; }
 .tl-row output { text-align: right; font-size: 13px; }
 @media (max-width: 520px) { .tl-head, .tl-row { grid-template-columns: minmax(0, 1fr) 64px 72px 52px; } }
+
+/* ===== Чек-ин по ссылке ===== */
+.invite-grid { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 600px) { .invite-grid { grid-template-columns: minmax(0, 1fr); } }
+.qr-box { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border-radius: 16px; background: #fff; }
+.qr-box span { font-size: 12px; color: #4b4560; }
+.qr { width: 100%; max-width: 176px; height: auto; display: block; }
+.invite-steps { display: flex; flex-direction: column; }
+.input.mono { font-family: var(--mono); font-size: 12.5px; }
+.links-list { display: flex; flex-direction: column; max-height: min(52vh, 460px); overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; }
+.link-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.link-row:first-child { border-top: 0; }
+.link-row .person { min-width: 0; }
+.link-row .person > span:last-child { min-width: 0; }
+.link-row .person span span { overflow-wrap: anywhere; }
+.link-actions { display: flex; gap: 6px; flex: none; }
+
+/* ===== Журнал записей ===== */
+.restore-box { border: 1px dashed var(--line-strong); border-radius: 14px; padding: 12px 14px; }
+.restore-box > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; color: var(--text-2); list-style: none; }
+.restore-box > summary::-webkit-details-marker { display: none; }
+.restore-box[open] > summary { margin-bottom: 12px; }
+.restore-in { display: flex; flex-direction: column; gap: 10px; }
+.journal-table td, .journal-table th { white-space: nowrap; }
+.j-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.j-actions .icon-btn { width: 36px; height: 36px; }
+.je-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 640px) { .je-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ===== Печать / PDF-отчёт ===== */
+.print-only { display: none; }
+@media print {
+  :root, [data-theme] {
+    --bg: #fff; --bg-tint: #fff; --panel: #fff; --panel-2: #f6f4fa; --panel-3: #ece8f4;
+    --line: #e2ddec; --line-strong: #cfc8df; --text: #14101f; --text-2: #2f2843; --muted: #5d5673; --faint: #8a84a0;
+    --violet: #5a2dbd; --violet-strong: #5a2dbd; --violet-soft: #efe9fb; --orange: #a14f10; --orange-soft: #fbefe3;
+    --mint: #0d6e55; --mint-soft: #e3f4ee; --red: #b3322b; --red-soft: #fbe6e4; --ice: #135f8c; --ice-soft: #e4f1f9;
+    --shadow-1: none; --shadow-2: none; --shadow-pop: none;
+  }
+  @page { size: A4; margin: 14mm 12mm; }
+  html, body, body.app-body { background: #fff !important; color: #14101f; }
+  body.app-body::before { display: none; }
+  .app { display: block; }
+  .sidebar, .topbar, .side-scrim, .page-actions, .footer-strip, .toasts, .cookie, #drawer-root, #modal-root,
+  .btn, .icon-btn, .seg, .planner-box, .j-actions, [data-action="checkin"], .kicker { display: none !important; }
+  .print-only { display: block !important; }
+  .print-head { display: flex !important; flex-direction: column; gap: 2px; padding: 0 0 10px; margin-bottom: 6px; border-bottom: 2px solid #5a2dbd; font-size: 11px; color: #2f2843; }
+  .print-head b { font-size: 13px; color: #14101f; }
+  .content { padding: 0; gap: 10px; }
+  .page-head p { display: none; }
+  .page-head h1 { font-size: 20px; }
+  .panel { break-inside: avoid; page-break-inside: avoid; box-shadow: none; background: #fff !important; border-color: #e2ddec; }
+  .grid { gap: 10px; }
+  .chart-wrap svg, .radar { max-height: 230px; }
+  .table-wrap { overflow: visible; }
+  a { color: inherit; text-decoration: none; }
+  .select { background-image: none; background-color: transparent; border-color: transparent; box-shadow: none; padding-left: 0; }
+}

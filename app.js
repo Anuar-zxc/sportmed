@@ -73,6 +73,17 @@
     psych: { name: 'Мария Ли', initials: 'МЛ', title: 'Спортивный психолог' },
     admin: { name: 'Айгерим Нурланова', initials: 'АН', title: 'Администратор' }
   };
+  /* В режиме пилота — реальные имена сотрудников этого устройства; в демо — вымышленные персонажи */
+  function initialsOf(name) {
+    var p = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return ((p[0] || '?').charAt(0) + (p[1] ? p[1].charAt(0) : '')).toUpperCase();
+  }
+  function who(k) {
+    var base = ROLES[k] || ROLES.doctor;
+    if (!isPilot()) return base;
+    var nm = String((pilot.staff || {})[k] || '').trim().slice(0, 60);
+    return { name: nm || base.title, initials: nm ? initialsOf(nm) : initialsOf(base.title), title: base.title, unnamed: !nm };
+  }
   function can(what) {
     var r = state.role;
     if (what === 'labs') return r === 'doctor';
@@ -189,6 +200,9 @@
       : model.athletes.filter(function (a) { return !(state.checkins[a.id] || []).length; }).length;
     notes.push({ id: 'n-check', kind: 'info', title: 'Утренний чек-ин', text: 'Не заполнили ' + noCheck + ' ' + plural(noCheck, 'спортсмен', 'спортсмена', 'спортсменов'), time: '08:00', go: function () { go('twin'); } });
     notes.push({ id: 'n-report', kind: 'ok', title: 'Еженедельный отчёт готов', text: 'Состояние команды — CSV для Excel', time: 'пн', go: function () { go('reports'); } });
+    if (isPilot() && pilotRecordCount() > 0 && (!pilot.lastBackup || Date.now() - pilot.lastBackup > 7 * 864e5)) {
+      notes.unshift({ id: 'n-backup-' + new Date().toISOString().slice(0, 10), kind: 'warn', title: 'Пора сделать резервную копию', text: pilot.lastBackup ? 'Последняя копия — больше недели назад' : 'Копии ещё не было: при очистке браузера данные пропадут', time: 'сейчас', go: function () { backupModal(); } });
+    }
     notes.forEach(function (n) { n.unread = state.read.indexOf(n.id) < 0; });
     return notes;
   }
@@ -412,7 +426,7 @@
     if (state.compact) document.documentElement.setAttribute('data-density', 'compact'); else document.documentElement.removeAttribute('data-density');
   }
   function updateShell() {
-    var r = ROLES[state.role];
+    var r = who(state.role);
     var tcN = document.getElementById('tc-name'), tcS = document.getElementById('tc-sub');
     if (tcN) {
       tcN.textContent = wsLabel();
@@ -431,7 +445,7 @@
       if (a.getAttribute('data-route') === current.page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.getElementById('crumb').textContent = PAGES[current.page][0];
-    document.title = PAGES[current.page][0] + ' — демо-кабинет AI Sports';
+    document.title = PAGES[current.page][0] + (isPilot() ? ' — ' + (pilot.team.name || 'Моя команда') + ' · AI Sports' : ' — демо-кабинет AI Sports');
   }
   function go(page, arg) { location.hash = '#/' + page + (arg ? '/' + arg : ''); }
 
@@ -894,12 +908,12 @@
         '<h2 class="title-m" style="margin:0">С чего начать пилот</h2>' +
         '<div class="steps-app">' +
         '<div class="step-card"><span class="n">01</span><b>Импортируйте историю</b><p>Если нагрузка велась в таблице — загрузите CSV, и модели сразу получат контекст (для риска нужно ≥ 35 дней).</p><button class="btn btn-primary btn-sm" type="button" data-action="pilot-import" style="align-self:flex-start">' + icon('upload', 'icon-sm') + 'Импорт истории</button></div>' +
-        '<div class="step-card"><span class="n">02</span><b>Вносите день за днём</b><p>Утром — чек-ин из карточки спортсмена, после тренировки — «Нагрузка дня» для всей команды за минуту.</p><button class="btn btn-ghost btn-sm" type="button" data-action="team-load" style="align-self:flex-start">' + icon('load', 'icon-sm') + 'Нагрузка дня</button></div>' +
+        '<div class="step-card"><span class="n">02</span><b>Раздайте ссылки на чек-ин</b><p>Каждый спортсмен отвечает с телефона за минуту, ответы приходят вам зашифрованными ссылками. После тренировки — «Нагрузка дня» для всей команды.</p><button class="btn btn-ghost btn-sm" type="button" data-action="team-links" style="align-self:flex-start">' + icon('link', 'icon-sm') + 'Ссылки для команды</button></div>' +
         '<div class="step-card"><span class="n">03</span><b>Настройте резервную копию</b><p>Данные живут только на этом устройстве — скачивайте зашифрованную копию хотя бы раз в неделю.</p><button class="btn btn-ghost btn-sm" type="button" data-action="pilot-backup" style="align-self:flex-start">' + icon('download', 'icon-sm') + 'Резервная копия</button></div>' +
         '</div></section>';
     }
 
-    return pageHead('overview', isPilot() ? '<button class="btn btn-ghost" type="button" data-action="team-load">' + icon('load') + '<span class="lbl">Нагрузка дня</span></button>' : '') +
+    return pageHead('overview', isPilot() ? '<button class="btn btn-ghost" type="button" data-action="inbox">' + icon('brain') + '<span class="lbl">Входящие чек-ины</span></button><button class="btn btn-ghost" type="button" data-action="team-load">' + icon('load') + '<span class="lbl">Нагрузка дня</span></button>' : '') +
       '<section class="team-hero" aria-label="Команда">' +
         '<svg class="hero-waves" viewBox="0 0 400 200" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="var(--violet)" stroke-width="1.2" opacity=".55"><path d="M0 60 C60 40 100 80 160 60 S260 40 320 60 400 70 400 70"/><path d="M0 90 C60 70 100 110 160 90 S260 70 320 90 400 100 400 100"/><path d="M0 120 C60 100 100 140 160 120 S260 100 320 120 400 130 400 130"/><path d="M0 150 C60 130 100 170 160 150 S260 130 320 150 400 160 400 160"/></g></svg>' +
         '<div style="position:relative"><div class="tags">' + heroTags + '</div>' +
@@ -1007,7 +1021,8 @@
         '<div class="kv">' + model.LABS.slice(0, 6).map(function (l) { var v = a.labs[l.key], out = v < l.lo || v > l.hi; return '<div><span>' + esc(l.name) + '</span><b class="' + (out ? 'val-warn' : '') + '">' + num(v, l.dec) + ' ' + l.unit + '</b></div>'; }).join('') + '</div>' :
         '<div class="lock">' + icon('lock') + '<span>Лабораторные показатели доступны спортивному врачу. Смените роль в меню профиля, чтобы посмотреть.</span></div>';
     }
-    return pageHead('twin') +
+    return pageHead('twin', '<button class="btn btn-ghost" type="button" data-action="print">' + icon('print') + '<span class="lbl">PDF-отчёт</span></button>') +
+      '<div class="print-only print-head"><b>AI Sports · отчёт по спортсмену</b><span>' + esc(a.short) + ' · срез на ' + fmtFull.format(asOfDate()) + ' · сформирован ' + fmtTime.format(new Date()) + '</span><span>Прогнозы моделей носят вероятностный характер и не являются медицинским заключением.</span></div>' +
       '<section class="panel" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px">' +
         '<div class="person"><span class="kpi-ic v">' + icon('twin', 'icon-sm') + '</span><span><b>Персональный профиль спортсмена</b><span>Данные устройства, анализы, нагрузка и самочувствие — в одной модели</span></span></div>' +
         athleteSelect('twin-select', a.id, 'Выбрать спортсмена') + '</section>' +
@@ -1020,7 +1035,7 @@
           (isPilot()
             ? '<div class="kv"><div><span>' + icon('sleep', 'icon-sm') + 'Сон</span><b>' + D.fmtHours(s.sleep) + '</b></div><div><span>' + icon('load', 'icon-sm') + 'Нагрузка вчера</span><b>' + (a.days[idx - 1] && a.days[idx - 1].load != null ? num(a.days[idx - 1].load) + ' у.е.' : '—') + '</b></div><div><span>' + icon('activity', 'icon-sm') + 'Самооценка</span><b>' + (s.well && s.well.readiness != null ? s.well.readiness + ' / 10' : '—') + '</b></div><div><span>' + icon('chart', 'icon-sm') + 'ACWR</span><b>' + (s.acwr == null ? '—' : num(s.acwr, 2)) + '</b></div></div>'
             : '<div class="kv"><div><span>' + icon('sleep', 'icon-sm') + 'Сон</span><b>' + D.fmtHours(s.sleep) + '</b></div><div><span>' + icon('heart', 'icon-sm') + 'HRV</span><b>' + (s.hrv == null ? '—' : num(s.hrv) + ' мс') + '</b></div><div><span>' + icon('activity', 'icon-sm') + 'Пульс покоя</span><b>' + (s.rhr == null ? '—' : s.rhr + ' уд/мин') + '</b></div><div><span>' + icon('load', 'icon-sm') + 'ACWR</span><b>' + (s.acwr == null ? '—' : num(s.acwr, 2)) + '</b></div></div>') +
-          '<div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="font-size:14.5px">Утренний чек-ин</b><p class="muted" style="margin:2px 0 0;font-size:13px">Самочувствие, сон и вчерашняя тренировка — обновляет прогноз модели. Не является психологической диагностикой.</p></div><button class="btn btn-primary btn-sm" type="button" data-action="checkin" data-id="' + a.id + '">' + icon('brain', 'icon-sm') + 'Пройти чек-ин</button></div>' +
+          '<div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="font-size:14.5px">Утренний чек-ин</b><p class="muted" style="margin:2px 0 0;font-size:13px">Самочувствие, сон и вчерашняя тренировка — обновляет прогноз модели. Не является психологической диагностикой.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap">' + (isPilot() && cryptoReady() ? '<button class="btn btn-ghost btn-sm" type="button" data-action="athlete-link" data-id="' + a.id + '">' + icon('link', 'icon-sm') + 'Ссылка для телефона</button>' : '') + '<button class="btn btn-primary btn-sm" type="button" data-action="checkin" data-id="' + a.id + '">' + icon('brain', 'icon-sm') + (isPilot() ? 'Внести за спортсмена' : 'Пройти чек-ин') + '</button></span></div>' +
           '<div class="journal" style="margin-top:10px"><b style="font-size:13.5px;display:block;margin-bottom:4px">Последние наблюдения</b>' + (obs || '<p class="muted" style="margin:6px 0 0;font-size:13.5px">Чек-ин ещё не заполнен.</p>') + '</div></div>' +
         '</div></section>' +
       '</div>' +
@@ -1037,6 +1052,7 @@
         '<section class="panel"><div class="panel-head"><div><h2>Сон и нагрузка</h2><p>30 дней · часы сна и нагрузка (sRPE, у.е. ÷ 100; 0 — день отдыха)</p></div></div><div class="panel-body">' +
           lineChart({ labels: days.map(function (d) { return d.date; }), label: 'Сон и нагрузка', series: [{ name: 'Сон, ч', color: 'var(--mint)', values: days.map(function (d) { return d.sleep; }), dec: 1, unit: ' ч' }, { name: 'Нагрузка', color: 'var(--orange)', values: days.map(function (d) { return d.load == null ? null : Math.round(d.load / 10) / 10; }), dash: true, dec: 1 }], height: 200, min: 0 }) + '</div></section>' +
       '</div>' +
+      (isPilot() ? journalHtml(a) : '') +
       (a.labs ? '<section class="panel"><div class="panel-head"><div><h2>Лабораторный срез</h2><p>Панель от ' + fmtFull.format(a.labDate) + '</p></div><a class="btn btn-ghost btn-sm" href="#/medical/' + a.id + '">Все медицинские данные ' + icon('arrow', 'icon-sm') + '</a></div><div class="panel-body">' + labs + '</div></section>' : '') +
       footerStrip();
   };
@@ -1164,7 +1180,7 @@
         '<section class="panel"><div class="panel-head"><div><h2>' + icon('spark', 'icon-sm') + 'Рекомендации AI</h2><p>Сформированы по правилам, утверждённым врачом и тренерским штабом</p></div></div>' +
           '<div class="table-tools">' + seg + '</div>' +
           '<div>' + (shown.map(recCard).join('') || '<div class="empty">' + icon('check') + 'В этой категории пусто.</div>') + '</div>' +
-          '<div class="panel-foot"><span>' + icon('shield', 'icon-sm') + ' Рекомендации демонстрационные. Медицинские назначения и допуск к тренировкам остаются за врачом.</span></div></section>' +
+          '<div class="panel-foot"><span>' + icon('shield', 'icon-sm') + (isPilot() ? ' Рекомендации формируются по данным команды и прогнозам моделей.' : ' Рекомендации демонстрационные.') + ' Медицинские назначения и допуск к тренировкам остаются за врачом.</span></div></section>' +
         '<section class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:12px"><span class="kpi-ic m" style="width:44px;height:44px">' + icon('stetho') + '</span><h2 class="title-m">Врач принимает решение. AI помогает увидеть больше.</h2>' +
           '<p class="muted" style="margin:0;font-size:13.5px">Каждое решение сохраняется в журнале. Рекомендации не применяются автоматически и не заменяют очную оценку. Рекомендации по лечению и медикаментам система не формирует.</p>' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><b>Журнал решений</b>' + (journal.length ? '<button class="btn btn-quiet btn-sm" type="button" data-action="clear-journal">Очистить</button>' : '') + '</div>' +
@@ -1237,8 +1253,12 @@
         ? '<div class="kv" style="margin-bottom:14px"><div><span>Спортсменов</span><b>' + pilot.athletes.length + '</b></div><div><span>Записей</span><b>' + num(pilotRecordCount()) + '</b></div></div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
           (!isPilot() ? '<button class="btn btn-primary btn-sm" type="button" data-ws-go="pilot">' + icon('users', 'icon-sm') + 'Переключиться на команду</button>' : '<button class="btn btn-ghost btn-sm" type="button" data-ws-go="demo">' + icon('spark', 'icon-sm') + 'Перейти в демо</button>') +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="team-links">' + icon('link', 'icon-sm') + 'Ссылки на чек-ин</button>' +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="inbox">' + icon('brain', 'icon-sm') + 'Входящие чек-ины</button>' +
           '<button class="btn btn-ghost btn-sm" type="button" data-action="pilot-import">' + icon('upload', 'icon-sm') + 'Импорт истории</button>' +
           '<button class="btn btn-ghost btn-sm" type="button" data-action="pilot-backup">' + icon('download', 'icon-sm') + 'Резервная копия</button>' +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="staff">' + icon('users', 'icon-sm') + 'Сотрудники</button>' +
+          '<button class="btn btn-quiet btn-sm" type="button" data-action="rotate-key">' + icon('shield', 'icon-sm') + 'Сменить ключ ссылок</button>' +
           '<button class="btn btn-danger btn-sm" type="button" data-action="pilot-clear">' + icon('trash', 'icon-sm') + 'Удалить пространство</button></div>' +
           '<div class="note" style="margin-top:14px">' + icon('shield', 'icon-sm') + '<span>Делайте зашифрованную копию хотя бы раз в неделю: при очистке данных браузера записи исчезнут. Рекомендуем коды вместо фамилий спортсменов.</span></div>'
         : '<p class="muted" style="margin:0 0 14px;font-size:13.5px">Реальный состав, ежедневные чек-ины и нагрузка, прогнозы моделей и зашифрованные резервные копии. Всё хранится на этом устройстве и не отправляется на сервер.</p>' +
@@ -1247,16 +1267,19 @@
     return pageHead('settings') +
       wsPanel +
       '<div class="grid g-2" style="align-items:start">' +
-        '<section class="panel"><div class="panel-head"><div><h2>Рабочее пространство</h2><p>Демонстрационный кабинет спортивного врача</p></div></div><div class="panel-body">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Рабочее пространство</h2><p>' + (isPilot() ? 'Настройки кабинета на этом устройстве' : 'Демонстрационный кабинет спортивного врача') + '</p></div></div><div class="panel-body">' +
           '<div class="setting"><div><b>Тема оформления</b><span class="d">Тёмная, светлая или как в системе</span></div>' + themeSeg + '</div>' +
           '<div class="setting"><div><b>Компактный режим</b><span class="d">Уменьшить расстояние между строками</span></div><span class="switch"><input type="checkbox" id="compact" ' + (state.compact ? 'checked' : '') + ' aria-label="Компактный режим"><span class="track"></span></span></div>' +
-          '<div class="setting"><div><b>Роль в демо</b><span class="d">Меняет, какие данные видны — как в реальной матрице доступа</span></div>' + roleSeg + '</div>' +
+          '<div class="setting"><div><b>' + (isPilot() ? 'Ваша роль' : 'Роль в демо') + '</b><span class="d">' + (isPilot() ? 'Определяет, какие данные видны, — по матрице доступа' : 'Меняет, какие данные видны — как в реальной матрице доступа') + '</span></div>' + roleSeg + '</div>' +
           '<div class="setting"><div><b>Язык интерфейса</b><span class="d">Русский · казахский запланирован для пилота</span></div><div class="seg" role="group" aria-label="Язык"><button type="button" aria-pressed="true">Русский</button><button type="button" disabled aria-pressed="false" title="Скоро">Қазақша · скоро</button></div></div>' +
-          '<div class="setting"><div><b>Режим данных</b><span class="d">Только демонстрационные данные, без реальных людей</span></div><span class="badge info">Демо</span></div>' +
-          '<div class="setting"><div><b>Сбросить демо-данные</b><span class="d">Удалить добавленных спортсменов, чек-ины, решения и настройки в этом браузере</span></div><button class="btn btn-danger btn-sm" type="button" data-action="reset">' + icon('refresh', 'icon-sm') + 'Сбросить</button></div>' +
+          (isPilot()
+            ? '<div class="setting"><div><b>Режим данных</b><span class="d">Реальная команда «' + esc(pilot.team.name) + '» · данные только на этом устройстве</span></div><span class="badge ok">Пилот</span></div>'
+            : '<div class="setting"><div><b>Режим данных</b><span class="d">Только демонстрационные данные, без реальных людей</span></div><span class="badge info">Демо</span></div>') +
+          (isPilot() ? '' : '<div class="setting"><div><b>Сбросить демо-данные</b><span class="d">Удалить добавленных спортсменов, чек-ины, решения и настройки в этом браузере</span></div><button class="btn btn-danger btn-sm" type="button" data-action="reset">' + icon('refresh', 'icon-sm') + 'Сбросить</button></div>') +
         '</div></section>' +
         '<div style="display:flex;flex-direction:column;gap:16px">' +
-          '<section class="panel"><div class="panel-head"><div><h2>Источники данных</h2><p>Интеграции запланированы. В демо внешние устройства не подключены.</p></div></div><div class="panel-body">' +
+          '<section class="panel"><div class="panel-head"><div><h2>Источники данных</h2><p>' + (isPilot() ? 'Подключены ручной ввод, чек-ин по ссылке и импорт CSV. Носимые устройства — по запросу.' : 'Интеграции запланированы. В демо внешние устройства не подключены.') + '</p></div></div><div class="panel-body">' +
+            (isPilot() ? [['CI', 'Чек-ин по ссылке', 'Спортсмен отвечает с телефона, ответ зашифрован'], ['CSV', 'Импорт истории', 'Нагрузка и самочувствие из таблицы'], ['Ru', 'Ввод в кабинете', 'Нагрузка дня, правка журнала']].map(function (s) { return '<div class="source"><span class="si">' + s[0] + '</span><span class="grow"><b>' + s[1] + '</b><span>' + s[2] + '</span></span><span class="badge ok">Активно</span></div>'; }).join('') : '') +
             sources.map(function (s) { return '<div class="source"><span class="si">' + s[0] + '</span><span class="grow"><b>' + s[1] + '</b><span>' + s[2] + '</span></span><span class="badge mute">Не подключено</span></div>'; }).join('') +
             '<a class="btn btn-ghost btn-sm" style="margin-top:14px" href="mailto:' + EMAIL + '?subject=' + encodeURIComponent('Интеграция источника данных — AI Sports') + '">' + icon('mail', 'icon-sm') + 'Обсудить интеграцию</a></div></section>' +
           '<section class="panel"><div class="panel-head"><div><h2>Матрица доступа</h2><p>Каждая роль видит только нужную ей категорию данных</p></div></div><div class="panel-body table-wrap"><table class="access-table"><thead><tr><th scope="col">Данные</th><th scope="col">Врач</th><th scope="col">Тренер</th><th scope="col">Психолог</th><th scope="col">Админ</th></tr></thead><tbody>' +
@@ -1323,6 +1346,8 @@
       ['Как работает планировщик нагрузки?', 'В разделе «AI-аналитика» задайте нагрузку и интенсивность на ближайшие 3 дня — модель пересчитает риск травмы и сравнит с обычным режимом.'],
       ['Почему я не вижу анализы?', 'Лабораторные показатели — медицинская тайна и доступны роли «Спортивный врач». Смените роль в меню профиля справа вверху или в настройках.'],
       ['Как вести реальную команду, а не демо?', 'Нажмите на карточку команды слева вверху и создайте «Мою команду»: реальный состав, утренние чек-ины, нагрузка дня и импорт истории из CSV. Все данные хранятся только на этом устройстве — настройте зашифрованную резервную копию в настройках.'],
+      ['Как спортсмены заполняют чек-ин с телефона?', 'В карточке «Цифровой двойник» нажмите «Ссылка для телефона» (или «Ссылки на чек-ин» в настройках — сразу для всей команды) и отправьте спортсмену ссылку или QR-код лично. Спортсмен отвечает за минуту без регистрации; ответ шифруется и приходит вам ссылкой в мессенджере — откройте её на этом устройстве или вставьте пачку ответов во «Входящие чек-ины». Если ссылка попала не тому человеку — смените ключ ссылок: все старые ссылки перестанут работать.'],
+      ['Как перенести данные на другое устройство?', 'Настройки → Моя команда → «Резервная копия»: задайте пароль и скачайте зашифрованный файл. На новом устройстве откройте кабинет, нажмите «Создать «Мою команду»» → «У меня есть резервная копия» и выберите файл. Ссылки спортсменов продолжат работать.'],
       ['Что умеет администратор?', 'Роль «Администратор» управляет пользователями и их ролями, согласиями спортсменов и видит журнал аудита, но не имеет доступа к медицинским данным. Переключитесь на неё в меню профиля и откройте раздел «Администрирование».'],
       ['Где хранятся мои действия в демо?', 'Добавленные спортсмены, чек-ины, решения и настройки сохраняются только в вашем браузере (localStorage) и никуда не отправляются. Их можно удалить в настройках кнопкой «Сбросить».'],
       ['Как выгрузить отчёт?', 'Нажмите «Создать отчёт» в любом разделе или откройте раздел «Отчёты». Файл CSV формируется прямо в браузере и открывается в Excel.']
@@ -1337,7 +1362,7 @@
           '<section class="panel"><div class="panel-head"><div><h2>Горячие клавиши</h2></div></div><div class="panel-body">' +
             [['Поиск спортсмена и разделов', [mod, 'K']], ['Поиск (альтернатива)', ['/']], ['Закрыть окно', ['Esc']], ['Помощь', ['?']]].map(function (k) { return '<div class="shortcut"><span>' + k[0] + '</span><span>' + k[1].map(function (x) { return '<span class="kbd">' + x + '</span>'; }).join('') + '</span></div>'; }).join('') + '</div></section>' +
           '<section class="panel"><div class="panel-head"><div><h2>Связаться с командой</h2><p>Пилот, интеграции, вопросы по данным</p></div></div><div class="panel-body" style="display:flex;flex-direction:column;gap:10px">' +
-            '<a class="btn btn-primary" href="mailto:' + EMAIL + '?subject=' + encodeURIComponent('Вопрос по демо-кабинету AI Sports') + '">' + icon('mail', 'icon-sm') + EMAIL + '</a>' +
+            '<a class="btn btn-primary" href="mailto:' + EMAIL + '?subject=' + encodeURIComponent('Вопрос по кабинету AI Sports') + '">' + icon('mail', 'icon-sm') + EMAIL + '</a>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px"><a class="btn btn-ghost btn-sm" href="/privacy">Конфиденциальность</a><a class="btn btn-ghost btn-sm" href="/cookies">Cookie</a><a class="btn btn-ghost btn-sm" href="/terms">Соглашение</a></div></div></section>' +
         '</div>' +
       '</div>' + footerStrip();
@@ -1401,8 +1426,10 @@
       '<textarea class="textarea" id="pw-roster" rows="6" placeholder="Спортсмен-01; нападающий; 7&#10;Спортсмен-02; вратарь; 1&#10;Спортсмен-03" aria-describedby="pw-roster-err"></textarea><span class="err" id="pw-roster-err"></span>' +
       '<span class="muted" style="font-size:12.5px">Формат: «код или имя; позиция; номер» — позиция и номер необязательны. Рекомендуем коды вместо фамилий: так в системе не будет лишних персональных данных.</span></div>' +
       '<div class="note">' + icon('shield', 'icon-sm') + '<span>Данные команды хранятся только в этом браузере и не отправляются никому, включая нас. Регулярно делайте резервную копию (Настройки → Моя команда). Платформа не является медицинским изделием.</span></div>' +
+      '<details class="restore-box"><summary>' + icon('upload', 'icon-sm') + 'У меня есть резервная копия — восстановить</summary><div class="restore-in">' + restoreHtml() + '</div></details>' +
       '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Создать рабочее пространство</button></div></form>', {
       mount: function (m) {
+        mountRestore(m);
         m.querySelector('#pw-form').addEventListener('submit', function (e) {
           e.preventDefault();
           var nameEl = m.querySelector('#pw-name');
@@ -1541,7 +1568,7 @@
       setN('fatigue', r.fatigue, 1, 5); setN('soreness', r.soreness, 1, 5);
       setN('sleep_quality', r.sleep_quality, 1, 5); setN('stress', r.stress, 1, 5);
       setN('mood', r.mood, 1, 5); setN('sleep_hours', r.sleep_hours, 0, 16);
-      if (any) saved++; else skipped++;
+      if (any) { if (!rec.src) rec.src = 'import'; saved++; } else skipped++;
     });
     savePilot();
     return { saved: saved, created: created, skipped: skipped, unmatched: Object.keys(unmatched) };
@@ -1561,6 +1588,82 @@
     el.href = url; el.download = name; document.body.appendChild(el); el.click(); el.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
+  function restoreHtml() {
+    return '<div class="field"><label for="bk-restore-pass">Восстановление из файла</label><input class="input" id="bk-restore-pass" type="password" autocomplete="off" placeholder="Пароль копии, если она зашифрована" style="margin-bottom:8px">' +
+      '<label class="btn btn-ghost btn-block" for="bk-file">' + icon('upload', 'icon-sm') + 'Выбрать файл копии<input type="file" id="bk-file" accept=".json,application/json" class="sr-only"></label></div>' +
+      '<div id="bk-out" aria-live="polite"></div>';
+  }
+  /* Проверка файла копии: только известные поля, допустимые значения, без лишнего */
+  var REC_NUM = { srpe: [0, 5000], hi: [0, 5000], sessions: [0, 6], strength: [0, 6], rpe: [0, 10], readiness: [0, 10], fatigue: [1, 5], soreness: [1, 5], sleep_quality: [1, 5], stress: [1, 5], mood: [1, 5], sleep_hours: [0, 16], ci_ts: [0, 1e14], edited: [0, 1] };
+  function sanitizeBackup(p) {
+    if (!p || typeof p !== 'object' || p.app !== 'ai-sports-pilot' || !p.team || typeof p.team !== 'object' || !Array.isArray(p.athletes) || !p.records || typeof p.records !== 'object') return null;
+    var str = function (v, n) { return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n) : ''; };
+    var team = { name: str(p.team.name, 60) || 'Моя команда', sport: str(p.team.sport, 40), created: typeof p.team.created === 'number' ? p.team.created : Date.now() };
+    if (/^[A-Za-z0-9_-]{4,40}$/.test(p.team.id || '') && /^[A-Za-z0-9_-]{43}$/.test(p.team.key || '')) { team.id = p.team.id; team.key = p.team.key; team.keyAt = typeof p.team.keyAt === 'number' ? p.team.keyAt : null; }
+    var seen = {}, athletes = [];
+    p.athletes.slice(0, 60).forEach(function (a) {
+      if (!a || !/^[A-Za-z0-9_-]{1,40}$/.test(a.id || '') || seen[a.id]) return;
+      seen[a.id] = 1;
+      athletes.push({ id: a.id, name: str(a.name, 60) || a.id, pos: str(a.pos, 40), num: typeof a.num === 'number' && isFinite(a.num) && a.num >= 0 && a.num < 1000 ? Math.round(a.num) : null });
+    });
+    if (!athletes.length) return null;
+    var records = {};
+    athletes.forEach(function (a) {
+      var src = p.records[a.id]; if (!src || typeof src !== 'object') return;
+      var out = {};
+      Object.keys(src).slice(0, 4000).forEach(function (d) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !src[d] || typeof src[d] !== 'object') return;
+        var r = src[d], o = {};
+        Object.keys(REC_NUM).forEach(function (k) { var v = r[k]; if (typeof v === 'number' && isFinite(v) && v >= REC_NUM[k][0] && v <= REC_NUM[k][1]) o[k] = v; });
+        if (typeof r.note === 'string' && r.note) o.note = str(r.note, 300);
+        if (r.src === 'athlete' || r.src === 'import') o.src = r.src;
+        if (Object.keys(o).length) out[d] = o;
+      });
+      records[a.id] = out;
+    });
+    var staff = {}, consents = {};
+    if (p.staff && typeof p.staff === 'object') Object.keys(ROLES).forEach(function (k) { var v = str(p.staff[k], 60).trim(); if (v) staff[k] = v; });
+    if (p.consents && typeof p.consents === 'object') athletes.forEach(function (a) {
+      var c = p.consents[a.id]; if (!c || typeof c !== 'object') return;
+      consents[a.id] = {}; PILOT_CONSENTS.forEach(function (k) { if (typeof c[k[0]] === 'boolean') consents[a.id][k[0]] = c[k[0]]; });
+    });
+    var audit = Array.isArray(p.audit) ? p.audit.filter(function (e) { return e && typeof e.ts === 'number' && isFinite(e.ts) && typeof e.text === 'string'; }).slice(0, 1000).map(function (e) { return { ts: e.ts, kind: str(e.kind, 20) || 'system', text: str(e.text, 400), by: str(e.by, 60), role: str(e.role, 60) }; }) : [];
+    return { v: 1, team: team, athletes: athletes, records: records, staff: staff, consents: consents, audit: audit, lastBackup: Date.now() };
+  }
+  function mountRestore(m) {
+    m.querySelector('#bk-file').addEventListener('change', function () {
+      var f = this.files && this.files[0], out = m.querySelector('#bk-out');
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var obj;
+        try { obj = JSON.parse(String(rd.result || '')); } catch (e) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Это не файл копии AI Sports.</span></div>'; return; }
+        function apply(raw) {
+          var payload = sanitizeBackup(raw);
+          if (!payload) {
+            out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Файл не похож на копию «Моей команды» или повреждён.</span></div>';
+            return;
+          }
+          pilot = payload;
+          savePilot();
+          state.ws = 'pilot'; save();
+          logEvent('system', 'Восстановление из резервной копии: «' + payload.team.name + '» · ' + payload.athletes.length + ' спортсм., ' + num(pilotRecordCount()) + ' зап.');
+          rebuild(); closeModal(); render();
+          toast('Данные восстановлены: ' + payload.team.name);
+        }
+        if (obj.enc === 'AES-GCM') {
+          var pass = m.querySelector('#bk-restore-pass').value;
+          if (!pass) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Копия зашифрована — введите пароль выше и выберите файл ещё раз.</span></div>'; return; }
+          deriveKey(pass, unb64(obj.salt), ['decrypt']).then(function (key) {
+            return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.iv) }, key, unb64(obj.data));
+          }).then(function (pt) { apply(JSON.parse(new TextDecoder().decode(pt))); })
+            .catch(function () { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Не удалось расшифровать: проверьте пароль.</span></div>'; });
+        } else apply(obj);
+      };
+      rd.readAsText(f, 'utf-8');
+      this.value = '';
+    });
+  }
   function backupModal() {
     if (!pilot) { setupPilotModal(); return; }
     openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('shield') + '</span><div><h2 id="modal-title">Резервная копия</h2><p>«' + esc(pilot.team.name) + '» · ' + pilot.athletes.length + ' ' + plural(pilot.athletes.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' · ' + num(pilotRecordCount()) + ' ' + plural(pilotRecordCount(), 'запись', 'записи', 'записей') + '</p></div></div>' +
@@ -1568,17 +1671,16 @@
       '<div class="field"><label for="bk-pass">Пароль шифрования (рекомендуем)</label><input class="input" id="bk-pass" type="password" autocomplete="new-password" placeholder="Пусто — копия без шифрования"><span class="muted" style="font-size:12.5px">AES-256-GCM, ключ из пароля (PBKDF2, 310 000 итераций). Пароль не восстановить — храните его отдельно.</span></div>' +
       '<button class="btn btn-primary btn-block" type="button" id="bk-save">' + icon('download', 'icon-sm') + 'Скачать копию</button>' +
       '<div class="menu-sep" style="margin:4px 0"></div>' +
-      '<div class="field"><label for="bk-restore-pass">Восстановление из файла</label><input class="input" id="bk-restore-pass" type="password" autocomplete="off" placeholder="Пароль копии, если она зашифрована" style="margin-bottom:8px">' +
-      '<label class="btn btn-ghost btn-block" for="bk-file">' + icon('upload', 'icon-sm') + 'Выбрать файл копии<input type="file" id="bk-file" accept=".json,application/json" class="sr-only"></label></div>' +
-      '<div id="bk-out" aria-live="polite"></div>' +
+      restoreHtml() +
       '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Восстановление заменит текущие данные «Моей команды». Данные демо-команды не затрагиваются.</span></div></div>', {
       mount: function (m) {
         m.querySelector('#bk-save').addEventListener('click', function () {
           var pass = m.querySelector('#bk-pass').value;
-          var payload = { app: 'ai-sports-pilot', v: 1, exportedAt: new Date().toISOString(), team: pilot.team, athletes: pilot.athletes, records: pilot.records };
+          var payload = { app: 'ai-sports-pilot', v: 1, exportedAt: new Date().toISOString(), team: pilot.team, athletes: pilot.athletes, records: pilot.records, staff: pilot.staff || {}, consents: pilot.consents || {}, audit: pilot.audit || [] };
           var fname = 'ai-sports_' + (pilot.team.name || 'team').toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').slice(0, 24) + '_' + new Date().toISOString().slice(0, 10);
           if (!pass) {
             saveFile(JSON.stringify(payload), fname + '.json');
+            pilot.lastBackup = Date.now(); savePilot();
             logEvent('system', 'Создана резервная копия (без шифрования)');
             toast('Копия скачана — без шифрования');
             return;
@@ -1588,43 +1690,349 @@
             return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
           }).then(function (ct) {
             saveFile(JSON.stringify({ app: 'ai-sports-pilot', v: 1, enc: 'AES-GCM', kdf: 'PBKDF2-SHA256', it: 310000, salt: b64(salt), iv: b64(iv), data: b64(ct) }), fname + '.enc.json');
+            pilot.lastBackup = Date.now(); savePilot();
             logEvent('system', 'Создана зашифрованная резервная копия');
             toast('Зашифрованная копия скачана');
           }).catch(function () { m.querySelector('#bk-out').innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Шифрование недоступно в этом браузере. Попробуйте без пароля.</span></div>'; });
         });
-        m.querySelector('#bk-file').addEventListener('change', function () {
-          var f = this.files && this.files[0], out = m.querySelector('#bk-out');
-          if (!f) return;
-          var rd = new FileReader();
-          rd.onload = function () {
-            var obj;
-            try { obj = JSON.parse(String(rd.result || '')); } catch (e) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Это не файл копии AI Sports.</span></div>'; return; }
-            function apply(payload) {
-              if (!payload || payload.app !== 'ai-sports-pilot' || !payload.team || !Array.isArray(payload.athletes) || !payload.records) {
-                out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Файл не похож на копию «Моей команды».</span></div>';
-                return;
-              }
-              pilot = { v: 1, team: payload.team, athletes: payload.athletes.slice(0, 60), records: payload.records };
-              savePilot();
-              state.ws = 'pilot'; save();
-              logEvent('system', 'Восстановление из резервной копии: «' + payload.team.name + '»');
-              rebuild(); closeModal(); render();
-              toast('Данные восстановлены: ' + payload.team.name);
-            }
-            if (obj.enc === 'AES-GCM') {
-              var pass = m.querySelector('#bk-restore-pass').value;
-              if (!pass) { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Копия зашифрована — введите пароль выше и выберите файл ещё раз.</span></div>'; return; }
-              deriveKey(pass, unb64(obj.salt), ['decrypt']).then(function (key) {
-                return crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.iv) }, key, unb64(obj.data));
-              }).then(function (pt) { apply(JSON.parse(new TextDecoder().decode(pt))); })
-                .catch(function () { out.innerHTML = '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Не удалось расшифровать: проверьте пароль.</span></div>'; });
-            } else apply(obj);
-          };
-          rd.readAsText(f, 'utf-8');
-          this.value = '';
+        mountRestore(m);
+      }
+    });
+  }
+
+  /* ======================= Журнал записей спортсмена (режим пилота) ======================= */
+  var J_FIELDS = [
+    // ключ хранения, подпись, мин, макс, перевёрнутая шкала (в хранилище 5 = лучше), подсказка
+    ['readiness', 'Готовность', 0, 10, false, '0–10'],
+    ['fatigue', 'Усталость', 1, 5, true, '1 нет — 5 сильная'],
+    ['soreness', 'Мышечная боль', 1, 5, true, '1 нет — 5 сильная'],
+    ['sleep_quality', 'Качество сна', 1, 5, false, '1 плохое — 5 отличное'],
+    ['stress', 'Стресс', 1, 5, true, '1 низкий — 5 высокий'],
+    ['mood', 'Настроение', 1, 5, false, '1 плохое — 5 отличное'],
+    ['sleep_hours', 'Сон, ч', 0, 16, false, '0–16'],
+    ['srpe', 'Нагрузка sRPE, у.е.', 0, 3000, false, 'RPE × минуты'],
+    ['rpe', 'RPE тренировки', 0, 10, false, '0–10'],
+    ['hi', 'Интенсивная часть, у.е.', 0, 3000, false, 'по желанию']
+  ];
+  var SRC_LABEL = { athlete: 'спортсмен', import: 'импорт' };
+  function jShow(f, v) { return v == null ? null : (f[4] ? 6 - v : v); }
+  function journalHtml(a) {
+    var rec = pilot.records[a.id] || {};
+    var dates = Object.keys(rec).sort().reverse();
+    var shown = dates.slice(0, 60);
+    return '<section class="panel"><div class="panel-head"><div><h2>Журнал записей <span class="badge plain mute">' + dates.length + '</span></h2><p>Все данные спортсмена по дням: проверка, исправление и удаление ошибочных записей</p></div>' +
+      '<button class="btn btn-ghost btn-sm" type="button" data-jedit="' + esc(model.isoOf(asOfDate())) + '" data-jid="' + a.id + '">' + icon('plus', 'icon-sm') + 'Добавить день</button></div>' +
+      (shown.length ? '<div class="table-wrap"><table class="table journal-table"><caption class="sr-only">Журнал записей: ' + esc(a.short) + '</caption><thead><tr><th scope="col">Дата</th><th scope="col">Готовность</th><th scope="col">Усталость</th><th scope="col">Боль</th><th scope="col">Сон</th><th scope="col">sRPE</th><th scope="col">Источник</th><th scope="col"><span class="sr-only">Действия</span></th></tr></thead><tbody>' +
+        shown.map(function (d) {
+          var r = rec[d] || {};
+          function cell(v, suf) { return v == null ? '<td class="num muted">—</td>' : '<td class="num">' + num(v, v % 1 ? 1 : 0) + (suf || '') + '</td>'; }
+          return '<tr tabindex="-1" style="cursor:default"><td class="num"><b>' + fmtFull.format(new Date(d + 'T00:00:00')) + '</b></td>' +
+            cell(r.readiness, '/10') + cell(jShow(J_FIELDS[1], r.fatigue), '/5') + cell(jShow(J_FIELDS[2], r.soreness), '/5') + cell(r.sleep_hours, ' ч') + cell(r.srpe) +
+            '<td><span class="badge plain mute">' + esc((SRC_LABEL[r.src] || 'кабинет') + (r.edited ? ' · правка' : '')) + '</span></td>' +
+            '<td class="j-actions"><button class="icon-btn" type="button" data-jedit="' + d + '" data-jid="' + a.id + '" aria-label="Изменить запись за ' + d + '">' + icon('sliders') + '</button>' +
+            '<button class="icon-btn" type="button" data-jdel="' + d + '" data-jid="' + a.id + '" aria-label="Удалить запись за ' + d + '">' + icon('trash') + '</button></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        (dates.length > shown.length ? '<div class="panel-foot"><span>Показаны последние 60 дней из ' + dates.length + '</span></div>' : '')
+      : '<div class="panel-body"><div class="empty">' + icon('file') + 'Записей пока нет. Отправьте спортсмену ссылку на чек-ин или внесите данные сами.</div></div>') +
+      '</section>';
+  }
+  function journalEditModal(aid, iso) {
+    var a = byId(aid); if (!a || !isPilot()) return;
+    var r = (pilot.records[aid] || {})[iso] || {};
+    openModal('<div class="modal-head"><span class="mi">' + icon('sliders') + '</span><div><h2 id="modal-title">Запись за день</h2><p>' + esc(a.short) + '</p></div></div>' +
+      '<form class="modal-body" id="je-form" novalidate>' +
+      '<div class="field"><label for="je-date">Дата</label><input class="input" id="je-date" type="date" value="' + esc(iso) + '" max="' + esc(model.isoOf(new Date())) + '"></div>' +
+      '<div class="je-grid">' + J_FIELDS.map(function (f) {
+        var v = jShow(f, r[f[0]]);
+        return '<div class="field"><label for="je-' + f[0] + '">' + f[1] + '</label><input class="input" id="je-' + f[0] + '" type="text" inputmode="decimal" autocomplete="off" value="' + (v == null ? '' : String(v).replace('.', ',')) + '" placeholder="' + f[5] + '"></div>';
+      }).join('') + '</div>' +
+      '<div class="field"><label for="je-note">Комментарий</label><textarea class="textarea" id="je-note" maxlength="300" rows="2">' + esc(r.note || '') + '</textarea></div>' +
+      '<span class="err" id="je-err" role="alert"></span>' +
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Пустое поле — значение удаляется. Шкалы показаны так, как их видит спортсмен (для усталости, боли и стресса 5 — сильнее всего).</span></div>' +
+      '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Сохранить запись</button></div></form>', {
+      cls: 'wide',
+      mount: function (m) {
+        m.querySelector('#je-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var errEl = m.querySelector('#je-err'), out = {}, bad = null;
+          var newIso = m.querySelector('#je-date').value;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(newIso)) { errEl.textContent = 'Укажите дату'; return; }
+          J_FIELDS.forEach(function (f) {
+            if (bad) return;
+            var el = m.querySelector('#je-' + f[0]), raw = String(el.value).trim().replace(',', '.');
+            if (raw === '') { el.removeAttribute('aria-invalid'); return; }
+            var x = Number(raw);
+            if (!(x >= f[2] && x <= f[3])) { el.setAttribute('aria-invalid', 'true'); bad = f[1] + ': от ' + f[2] + ' до ' + f[3]; el.focus(); return; }
+            el.removeAttribute('aria-invalid');
+            out[f[0]] = f[4] ? 6 - x : x;
+          });
+          if (bad) { errEl.textContent = 'Проверьте поле «' + bad + '»'; return; }
+          var note = m.querySelector('#je-note').value.trim().slice(0, 300);
+          if (note) out.note = note;
+          if (out.srpe != null) out.sessions = out.srpe > 0 ? Math.max(1, r.sessions || 1) : 0;
+          Object.keys(r).forEach(function (k) {
+            if (k === 'note' || k === 'sessions' || J_FIELDS.some(function (f) { return f[0] === k; })) return;
+            out[k] = r[k];
+          });
+          if (out.srpe == null && r.sessions != null && r.srpe == null) out.sessions = r.sessions;
+          out.edited = 1;
+          pilot.records[aid] = pilot.records[aid] || {};
+          if (newIso !== iso) delete pilot.records[aid][iso];
+          if (Object.keys(out).filter(function (k) { return ['src', 'edited', 'ci_ts'].indexOf(k) < 0; }).length) pilot.records[aid][newIso] = out;
+          else delete pilot.records[aid][newIso];
+          savePilot();
+          logEvent('data', 'Изменена запись журнала: ' + a.short + ' · ' + newIso + (newIso !== iso ? ' (перенесена с ' + iso + ')' : ''));
+          rebuild(); closeModal(); render(); toast('Запись сохранена');
         });
       }
     });
+  }
+  function journalDeleteModal(aid, iso) {
+    var a = byId(aid); if (!a || !isPilot()) return;
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--red-soft);color:var(--red)">' + icon('trash') + '</span><div><h2 id="modal-title">Удалить запись?</h2><p>' + esc(a.short) + ' · ' + fmtFull.format(new Date(iso + 'T00:00:00')) + '. Чек-ин и нагрузка за этот день будут удалены, прогнозы пересчитаются.</p></div></div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-danger" type="button" id="jd-go">Удалить</button></div>', {
+      mount: function (m) {
+        m.querySelector('#jd-go').addEventListener('click', function () {
+          if (pilot.records[aid]) delete pilot.records[aid][iso];
+          savePilot();
+          logEvent('data', 'Удалена запись журнала: ' + a.short + ' · ' + iso);
+          rebuild(); closeModal(); render(); toast('Запись удалена');
+        });
+      }
+    });
+  }
+
+  /* ======================= Чек-ин спортсменов по ссылке ======================= */
+  var CX = window.ASPCrypto;
+  function cryptoReady() { return !!(CX && window.crypto && crypto.subtle); }
+  function ensureTeamCrypto() {
+    if (!pilot) return false;
+    if (!pilot.team.id || !pilot.team.key) {
+      pilot.team.id = CX.randomId(6);
+      pilot.team.key = CX.randomKey();
+      pilot.team.keyAt = Date.now();
+      savePilot();
+    }
+    return true;
+  }
+  function appBaseHtml() { return /\.html$/.test(location.pathname); }
+  function checkinBase() { return location.origin + (appBaseHtml() ? '/checkin.html' : '/checkin'); }
+  function inviteUrl(a) {
+    ensureTeamCrypto();
+    return CX.deriveAthleteKey(pilot.team.key, pilot.team.id, a.id).then(function (k) {
+      return checkinBase() + '#' + CX.inviteHash(pilot.team.id, a.id, k, a.short);
+    });
+  }
+  function qrSvg(text) {
+    if (typeof window.qrcode !== 'function') return '';
+    var qr = window.qrcode(0, 'M');
+    qr.addData(text); qr.make();
+    var n = qr.getModuleCount(), q = 2, size = n + q * 2, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+    return '<svg class="qr" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="QR-код ссылки на чек-ин" shape-rendering="crispEdges"><rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#14091f"/></svg>';
+  }
+  function copyText(text, okMsg) {
+    var p = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject();
+    return p.then(function () { toast(okMsg || 'Скопировано'); }).catch(function () { window.prompt('Скопируйте:', text); });
+  }
+  function athleteLinkModal(id) {
+    if (!isPilot() || !cryptoReady()) return;
+    var a = byId(id); if (!a) return;
+    inviteUrl(a).then(function (url) {
+      logEvent('access', 'Выдана ссылка на чек-ин: ' + a.short);
+      openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('link') + '</span><div><h2 id="modal-title">Чек-ин с телефона</h2><p>Персональная ссылка для «' + esc(a.short) + '»</p></div></div>' +
+        '<div class="modal-body">' +
+          '<div class="invite-grid"><div class="qr-box">' + qrSvg(url) + '<span>Наведите камеру телефона</span></div>' +
+          '<div class="invite-steps"><div class="journal-row"><span class="dot" style="background:var(--violet)"></span><div><b>1. Отправьте ссылку лично спортсмену</b><span>В личные сообщения, не в общий чат: по ссылке можно отвечать от имени этого спортсмена.</span></div></div>' +
+          '<div class="journal-row"><span class="dot" style="background:var(--violet)"></span><div><b>2. Спортсмен отвечает за минуту</b><span>Ссылка запоминается на его телефоне — дальше чек-ин открывается с главного экрана.</span></div></div>' +
+          '<div class="journal-row"><span class="dot" style="background:var(--mint)"></span><div><b>3. Ответ приходит вам ссылкой</b><span>Откройте её на этом устройстве — запись появится в журнале. Несколько ответов можно вставить разом через «Входящие».</span></div></div></div></div>' +
+          '<div class="field"><label for="inv-url">Ссылка</label><input class="input mono" id="inv-url" readonly value="' + esc(url) + '"></div>' +
+          '<div class="modal-foot" style="margin-top:0;justify-content:flex-start"><button class="btn btn-primary" type="button" id="inv-copy">' + icon('link', 'icon-sm') + 'Скопировать ссылку</button>' +
+          (navigator.share ? '<button class="btn btn-ghost" type="button" id="inv-share">' + icon('external', 'icon-sm') + 'Поделиться</button>' : '') +
+          '<a class="btn btn-ghost" target="_blank" rel="noopener noreferrer" href="https://t.me/share/url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent('Ваш утренний чек-ин AI Sports') + '">Telegram</a></div>' +
+          '<div class="note">' + icon('shield', 'icon-sm') + '<span>Ключ находится в части ссылки после «#» и не передаётся ни на один сервер. Если ссылка попала не к тому человеку — смените ключ команды в настройках: все старые ссылки перестанут работать.</span></div>' +
+        '</div>', {
+        cls: 'wide',
+        mount: function (m) {
+          m.querySelector('#inv-copy').addEventListener('click', function () { copyText(url, 'Ссылка скопирована — отправьте её лично спортсмену'); });
+          var sh = m.querySelector('#inv-share');
+          if (sh) sh.addEventListener('click', function () { navigator.share({ title: 'Чек-ин AI Sports', url: url }).catch(function () { /* отменено */ }); });
+          m.querySelector('#inv-url').addEventListener('focus', function () { this.select(); });
+        }
+      });
+    }).catch(function () { toast('Не удалось создать ссылку: шифрование недоступно в этом браузере'); });
+  }
+  function teamLinksModal() {
+    if (!isPilot() || !cryptoReady()) return;
+    Promise.all(model.athletes.map(function (a) { return inviteUrl(a).then(function (u) { return { a: a, url: u }; }); })).then(function (rows) {
+      openModal('<div class="modal-head"><span class="mi" style="background:var(--ice-soft);color:var(--ice)">' + icon('link') + '</span><div><h2 id="modal-title">Ссылки на чек-ин</h2><p>' + rows.length + ' ' + plural(rows.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' · каждая ссылка — только для своего спортсмена</p></div></div>' +
+        '<div class="modal-body"><div class="links-list">' + rows.map(function (r, i) {
+          return '<div class="link-row"><span class="person">' + avatar(r.a) + '<span><b>' + esc(r.a.short) + '</b><span>' + (r.a.posName ? esc(r.a.posName) : 'Спортсмен') + (r.a.num ? ' · № ' + esc(r.a.num) : '') + '</span></span></span>' +
+            '<span class="link-actions"><button class="btn btn-ghost btn-sm" type="button" data-copy-link="' + i + '">' + icon('link', 'icon-sm') + 'Копировать</button><button class="btn btn-quiet btn-sm" type="button" data-qr-link="' + esc(r.a.id) + '">QR</button></span></div>';
+        }).join('') + '</div>' +
+        '<div class="note">' + icon('info', 'icon-sm') + '<span>Отправляйте каждую ссылку лично. Для массовой рассылки скачайте список и разошлите через свой рабочий канал.</span></div></div>' +
+        '<div class="modal-foot"><button class="btn btn-ghost" type="button" id="links-csv">' + icon('download', 'icon-sm') + 'Скачать список (CSV)</button><button class="btn btn-primary" type="button" data-close>Готово</button></div>', {
+        cls: 'wide',
+        mount: function (m) {
+          m.addEventListener('click', function (e) {
+            var c = e.target.closest('[data-copy-link]');
+            if (c) { var r = rows[+c.getAttribute('data-copy-link')]; copyText(r.url, 'Ссылка для «' + r.a.short + '» скопирована'); return; }
+            var q = e.target.closest('[data-qr-link]');
+            if (q) { closeModal(); athleteLinkModal(q.getAttribute('data-qr-link')); }
+          });
+          m.querySelector('#links-csv').addEventListener('click', function () {
+            saveCSV([['Спортсмен', 'Номер', 'Ссылка на чек-ин']].concat(rows.map(function (r) { return [r.a.short, r.a.num || '', r.url]; })), 'ai-sports_checkin-links.csv');
+            logEvent('access', 'Выгружен список ссылок на чек-ин (' + rows.length + ')');
+            toast('Список скачан — храните его как пароли');
+          });
+        }
+      });
+    });
+  }
+  function rotateTeamKey() {
+    if (!pilot) return;
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--orange-soft);color:var(--orange)">' + icon('shield') + '</span><div><h2 id="modal-title">Сменить ключ команды?</h2><p>Все выданные ссылки на чек-ин и ещё не принятые ответы перестанут работать. Новые ссылки нужно будет разослать заново.</p></div></div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-danger" type="button" id="rk-go">Сменить ключ</button></div>', {
+      mount: function (m) {
+        m.querySelector('#rk-go').addEventListener('click', function () {
+          pilot.team.id = CX.randomId(6); pilot.team.key = CX.randomKey(); pilot.team.keyAt = Date.now(); savePilot();
+          logEvent('access', 'Ключ команды для чек-инов сменён — старые ссылки отозваны');
+          closeModal(); render(); toast('Ключ сменён. Разошлите новые ссылки.');
+        });
+      }
+    });
+  }
+
+  /* ----- сотрудники этого устройства ----- */
+  function staffModal() {
+    if (!isPilot()) return;
+    var st = pilot.staff || {};
+    openModal('<div class="modal-head"><span class="mi">' + icon('users') + '</span><div><h2 id="modal-title">Сотрудники</h2><p>Имена подставляются в шапку, журнал аудита и решения по рекомендациям</p></div></div>' +
+      '<form class="modal-body" id="st-form" novalidate><div class="je-grid">' + Object.keys(ROLES).map(function (k) {
+        return '<div class="field"><label for="st-' + k + '">' + ROLES[k].title + '</label><input class="input" id="st-' + k + '" type="text" maxlength="60" autocomplete="off" value="' + esc(st[k] || '') + '" placeholder="Имя и фамилия"></div>';
+      }).join('') + '</div>' +
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Роль переключается в меню профиля в правом верхнем углу. Права доступа зависят от роли: лабораторные данные видит только врач, ответы чек-ина детально — только психолог.</span></div>' +
+      '<div class="modal-foot" style="margin-top:4px"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="submit">' + icon('check', 'icon-sm') + 'Сохранить</button></div></form>', {
+      mount: function (m) {
+        m.querySelector('#st-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var out = {};
+          Object.keys(ROLES).forEach(function (k) { var v = m.querySelector('#st-' + k).value.replace(/\s+/g, ' ').trim().slice(0, 60); if (v) out[k] = v; });
+          pilot.staff = out; savePilot();
+          logEvent('staff', 'Обновлены имена сотрудников устройства');
+          closeModal(); render(); toast('Сотрудники сохранены');
+        });
+      }
+    });
+  }
+
+  /* ----- приём ответов ----- */
+  function decodeReply(rep) {
+    if (!pilot || !pilot.team.id) return Promise.resolve({ error: 'Сначала создайте «Мою команду» на этом устройстве.' });
+    if (rep.teamId !== pilot.team.id) return Promise.resolve({ error: 'Ответ для другой команды или по старой ссылке (ключ был сменён).' });
+    var a = byId(rep.athleteId);
+    if (!a) return Promise.resolve({ error: 'Спортсмена нет в составе — возможно, он удалён.' });
+    return CX.deriveAthleteKey(pilot.team.key, pilot.team.id, a.id).then(function (k) {
+      return CX.open(k, rep.blob, CX.aadFor(pilot.team.id, a.id));
+    }).then(function (p) {
+      if (!p || p.v !== 1 || p.a !== a.id || p.t !== pilot.team.id || !/^\d{4}-\d{2}-\d{2}$/.test(p.d) || !p.r) return { error: 'Ответ повреждён.', a: a };
+      var r = p.r, bad = false;
+      function rng(v, lo, hi) { if (v == null) return; if (typeof v !== 'number' || !(v >= lo && v <= hi)) bad = true; }
+      rng(r.readiness, 0, 10); ['fatigue', 'soreness', 'sleepq', 'stress', 'mood'].forEach(function (k) { rng(r[k], 1, 5); });
+      rng(r.sleeph, 0, 16); rng(r.rpe, 0, 10); rng(r.dur, 0, 600);
+      if (r.readiness == null || bad) return { error: 'В ответе недопустимые значения.', a: a };
+      var dt = new Date(p.d + 'T00:00:00'), now = new Date();
+      if (dt - now > 36e5 * 36 || now - dt > 864e5 * 60) return { error: 'Дата ответа вне допустимого окна (60 дней).', a: a };
+      var cur = (pilot.records[a.id] || {})[p.d] || {};
+      if (cur.ci_ts && typeof p.ts === 'number' && cur.ci_ts >= p.ts) return { dup: true, a: a, d: p.d, r: r, ts: p.ts, newer: cur.ci_ts > p.ts };
+      var exists = cur.readiness != null;
+      return { ok: true, a: a, d: p.d, r: r, ts: p.ts, exists: exists };
+    }).catch(function () { return { error: 'Не удалось расшифровать: ссылка повреждена или ключ был сменён.', a: a }; });
+  }
+  function applyReply(x) {
+    var rec = pilotRec(x.a.id, x.d), r = x.r;
+    rec.readiness = r.readiness;
+    if (r.mood != null) rec.mood = r.mood;
+    if (r.stress != null) rec.stress = 6 - r.stress;
+    if (r.sleepq != null) rec.sleep_quality = r.sleepq;
+    if (r.soreness != null) rec.soreness = 6 - r.soreness;
+    if (r.fatigue != null) rec.fatigue = 6 - r.fatigue;
+    if (r.sleeph != null) rec.sleep_hours = r.sleeph;
+    if (r.note) rec.note = String(r.note).slice(0, 300);
+    rec.src = 'athlete';
+    delete rec.edited;
+    if (typeof x.ts === 'number') rec.ci_ts = x.ts;
+    if (r.dur != null) {
+      var y = new Date(x.d + 'T00:00:00'); y.setDate(y.getDate() - 1);
+      var yr = pilotRec(x.a.id, model.isoOf(y));
+      yr.srpe = Math.round((r.rpe || 0) * r.dur);
+      yr.rpe = r.dur === 0 ? 0 : r.rpe;
+      yr.sessions = r.dur > 0 ? Math.max(1, yr.sessions || 0) : 0;
+      if (!yr.src) yr.src = 'athlete';
+    }
+  }
+  function replySummary(r) {
+    var parts = ['готовность ' + r.readiness + '/10'];
+    if (r.fatigue != null) parts.push('усталость ' + r.fatigue + '/5');
+    if (r.soreness != null) parts.push('боль ' + r.soreness + '/5');
+    if (r.sleeph != null) parts.push('сон ' + num(r.sleeph, 1) + ' ч');
+    if (r.dur != null) parts.push(r.dur === 0 ? 'вчера отдых' : 'вчера RPE ' + r.rpe + ' × ' + r.dur + ' мин');
+    return parts.join(' · ');
+  }
+  function showReplies(list) {
+    Promise.all(list.map(decodeReply)).then(function (res) {
+      var good = res.filter(function (x) { return x.ok; });
+      var seen = {};
+      good = good.filter(function (x) { var k = x.a.id + x.d; if (seen[k] && seen[k].ts >= x.ts) return false; seen[k] = x; return true; });
+      var dups = res.filter(function (x) { return x.dup; });
+      var bad = res.filter(function (x) { return !x.ok && !x.dup; });
+      openModal('<div class="modal-head"><span class="mi" style="background:var(--mint-soft);color:var(--mint)">' + icon('brain') + '</span><div><h2 id="modal-title">' + (good.length === 1 ? 'Чек-ин от спортсмена' : 'Входящие чек-ины') + '</h2><p>' + good.length + ' ' + plural(good.length, 'ответ готов', 'ответа готовы', 'ответов готовы') + ' к сохранению' + (dups.length ? ' · ' + dups.length + ' уже в журнале' : '') + (bad.length ? ' · ' + bad.length + ' с ошибкой' : '') + '</p></div></div>' +
+        '<div class="modal-body"><div class="links-list">' +
+        good.map(function (x) {
+          return '<div class="link-row"><span class="person">' + avatar(x.a) + '<span><b>' + esc(x.a.short) + ' · ' + fmtFull.format(new Date(x.d + 'T00:00:00')) + '</b><span>' + esc(replySummary(x.r)) + (x.r.note && can('psych') ? '<br>«' + esc(x.r.note) + '»' : '') + '</span></span></span>' + (x.exists ? '<span class="badge warn plain">заменит запись</span>' : '<span class="badge ok plain">новый</span>') + '</div>';
+        }).join('') +
+        dups.map(function (x) { return '<div class="link-row"><span class="person">' + avatar(x.a) + '<span><b>' + esc(x.a.short) + ' · ' + fmtFull.format(new Date(x.d + 'T00:00:00')) + '</b><span>' + (x.newer ? 'В журнале уже более свежий ответ за этот день' : 'Этот ответ уже сохранён') + '</span></span></span><span class="badge plain mute">пропущен</span></div>'; }).join('') +
+        bad.map(function (x) { return '<div class="link-row"><span class="person"><span class="avatar c4">!</span><span><b>' + (x.a ? esc(x.a.short) : 'Неизвестный ответ') + '</b><span class="val-warn">' + esc(x.error) + '</span></span></span></div>'; }).join('') +
+        '</div>' + (good.length ? '' : dups.length && !bad.length ? '<div class="note">' + icon('check', 'icon-sm') + '<span>Всё уже в журнале — сохранять нечего.</span></div>' : '<div class="note warn">' + icon('alert', 'icon-sm') + '<span>Нечего сохранять. Если ключ команды менялся — отправьте спортсмену новую ссылку.</span></div>') + '</div>' +
+        '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>' + (good.length ? 'Отмена' : 'Закрыть') + '</button>' + (good.length ? '<button class="btn btn-primary" type="button" id="rp-save">' + icon('check', 'icon-sm') + 'Сохранить в журнал</button>' : '') + '</div>', {
+        cls: 'wide',
+        mount: function (m) {
+          var sv = m.querySelector('#rp-save');
+          if (sv) sv.addEventListener('click', function () {
+            good.forEach(applyReply);
+            savePilot();
+            logEvent('checkin', 'Приняты чек-ины спортсменов по ссылке: ' + good.length + ' (' + good.map(function (x) { return x.a.short; }).slice(0, 4).join(', ') + (good.length > 4 ? '…' : '') + ')');
+            rebuild(); closeModal(); render();
+            toast('Сохранено: ' + good.length + ' ' + plural(good.length, 'чек-ин', 'чек-ина', 'чек-инов'));
+          });
+        }
+      });
+    });
+  }
+  function inboxModal() {
+    if (!isPilot()) return;
+    openModal('<div class="modal-head"><span class="mi" style="background:var(--mint-soft);color:var(--mint)">' + icon('brain') + '</span><div><h2 id="modal-title">Входящие чек-ины</h2><p>Вставьте ответы спортсменов — можно сразу несколько, хоть всю переписку</p></div></div>' +
+      '<div class="modal-body"><div class="field"><label for="ib-text">Ссылки-ответы</label><textarea class="textarea mono" id="ib-text" rows="7" placeholder="https://…/app#ci=…"></textarea></div><span class="err" id="ib-err" role="alert"></span>' +
+      '<div class="note">' + icon('info', 'icon-sm') + '<span>Из текста берутся только ссылки чек-ина; остальное игнорируется. Расшифровка — на этом устройстве.</span></div></div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="button" id="ib-go">' + icon('check', 'icon-sm') + 'Разобрать</button></div>', {
+      mount: function (m) {
+        m.querySelector('#ib-go').addEventListener('click', function () {
+          var list = CX.parseReplies(m.querySelector('#ib-text').value);
+          if (!list.length) { m.querySelector('#ib-err').textContent = 'Не нашёл ни одной ссылки чек-ина. Скопируйте сообщение спортсмена целиком.'; return; }
+          closeModal(); showReplies(list);
+        });
+      }
+    });
+  }
+  function handleIncomingHash() {
+    if (!/^#ci=/.test(location.hash)) return false;
+    var rep = CX && CX.parseReply(location.hash);
+    try { history.replaceState(null, '', location.pathname + '#/overview'); } catch (e) { location.hash = '#/overview'; }
+    if (!rep) { toast('Ссылка чек-ина повреждена'); return true; }
+    if (!pilot) { setTimeout(function () { openModal('<div class="modal-head"><span class="mi">' + icon('info') + '</span><div><h2 id="modal-title">Это ответ на чек-ин</h2><p>Открыть его можно только на устройстве, где ведётся «Моя команда», — там хранится ключ команды. Перешлите ссылку себе на рабочее устройство или восстановите команду из резервной копии.</p></div></div><div class="modal-foot"><button class="btn btn-primary" type="button" data-close>Понятно</button></div>'); }, 50); return true; }
+    if (!isPilot()) { state.ws = 'pilot'; save(); rebuild(); }
+    setTimeout(function () { showReplies([rep]); }, 60);
+    return true;
   }
 
   /* ======================= Администрирование ======================= */
@@ -1635,7 +2043,14 @@
     ['research', 'Обезличенное использование', 'Дообучение моделей без имени и контактов']
   ];
   var CONSENT_OFF = { 'a20:wear': 1, 'a20:lab': 1, 'a11:research': 1, 'a06:coach': 1, 'a22:research': 1 };
+  var PILOT_CONSENTS = [
+    ['health', 'Данные о здоровье', 'Чек-ины, сон, самочувствие и нагрузка — письменное согласие спортсмена'],
+    ['coach', 'Передача тренеру', 'Обобщённый статус готовности для тренерского штаба'],
+    ['research', 'Обезличенное использование', 'Улучшение моделей без имени и контактов']
+  ];
+  function consentKeys() { return isPilot() ? PILOT_CONSENTS : CONSENT_KEYS; }
   function consentOf(id, key) {
+    if (isPilot()) return !!(((pilot.consents || {})[id] || {})[key]);
     var o = state.consents[id];
     if (o && key in o) return !!o[key];
     return !(CONSENT_OFF[id + ':' + key]);
@@ -1655,13 +2070,19 @@
     return state.staff;
   }
   var AUDIT_KINDS = {
-    role: ['user', 'Доступ'], staff: ['users', 'Доступ'], consent: ['shield', 'Согласия'],
+    role: ['user', 'Доступ'], staff: ['users', 'Доступ'], consent: ['shield', 'Согласия'], access: ['link', 'Доступ'],
     decision: ['check', 'Решения'], checkin: ['brain', 'Данные'], athlete: ['users', 'Данные'],
     data: ['upload', 'Данные'], report: ['download', 'Отчёты'], system: ['settings', 'Система']
   };
   function logEvent(kind, text) {
-    var r = ROLES[state.role];
-    state.audit = [{ ts: Date.now(), kind: kind, text: text, by: r.name, role: r.title }].concat(state.audit || []).slice(0, 300);
+    var r = who(state.role), ev = { ts: Date.now(), kind: kind, text: text, by: r.name, role: r.title };
+    if (isPilot()) {
+      // журнал пилота хранится вместе с данными команды и попадает в резервную копию
+      pilot.audit = [ev].concat(pilot.audit || []).slice(0, 1000);
+      savePilot();
+      return;
+    }
+    state.audit = [ev].concat(state.audit || []).slice(0, 300);
     save();
   }
   function demoAudit() {
@@ -1676,7 +2097,7 @@
       { ts: at(8, 30, 3), kind: 'staff', text: 'Деактивирован пользователь Виктор Пак', by: 'Айгерим Нурланова', role: 'Администратор', demo: true }
     ];
   }
-  function allAudit() { return (state.audit || []).concat(demoAudit()); }
+  function allAudit() { return isPilot() ? (pilot.audit || []) : (state.audit || []).concat(demoAudit()); }
 
   RENDER.admin = function () {
     if (!can('admin')) {
@@ -1685,8 +2106,9 @@
         '<span class="kpi-ic i" style="width:46px;height:46px">' + icon('lock') + '</span>' +
         '<h2 class="title-m">Раздел доступен администратору</h2>' +
         '<p class="muted" style="margin:0;max-width:52ch">Управление пользователями, согласиями и журналом аудита — зона ответственности администратора платформы. Текущая роль: «' + ROLES[state.role].title + '».</p>' +
-        '<button class="btn btn-primary" type="button" data-role-set="admin">' + icon('users', 'icon-sm') + 'Войти как администратор (демо)</button></section>' + footerStrip();
+        '<button class="btn btn-primary" type="button" data-role-set="admin">' + icon('users', 'icon-sm') + (isPilot() ? 'Переключиться на роль администратора' : 'Войти как администратор (демо)') + '</button></section>' + footerStrip();
     }
+    if (isPilot()) return pilotAdminHtml();
     var staff = getStaff();
     var activeStaff = staff.filter(function (u) { return u.active; }).length;
     var real = model.athletes.filter(function (a) { return !a.custom; });
@@ -1701,7 +2123,7 @@
     var FILTERS = [['all', 'Все'], ['access', 'Доступ'], ['decision', 'Решения'], ['data', 'Данные'], ['system', 'Система']];
     function inFilter(e) {
       if (f === 'all') return true;
-      if (f === 'access') return e.kind === 'role' || e.kind === 'staff' || e.kind === 'consent';
+      if (f === 'access') return e.kind === 'role' || e.kind === 'staff' || e.kind === 'consent' || e.kind === 'access';
       if (f === 'decision') return e.kind === 'decision';
       if (f === 'data') return e.kind === 'data' || e.kind === 'checkin' || e.kind === 'athlete' || e.kind === 'report';
       return e.kind === 'system';
@@ -1762,6 +2184,86 @@
         '</div></section>' +
       '</div>' + footerStrip();
   };
+  function daysAgo(ts) { return ts ? Math.floor((Date.now() - ts) / 864e5) : null; }
+  function agoText(ts) {
+    var d = daysAgo(ts);
+    if (d == null) return 'ни разу';
+    return d === 0 ? 'сегодня' : d === 1 ? 'вчера' : d + ' ' + plural(d, 'день', 'дня', 'дней') + ' назад';
+  }
+  function pilotAdminHtml() {
+    var ath = pilot.athletes, n = ath.length;
+    var t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    var days7 = []; for (var i = 0; i < 7; i++) { var d = new Date(t0); d.setDate(d.getDate() - i); days7.push(model.isoOf(d)); }
+    var filled = 0;
+    ath.forEach(function (a) { var rr = pilot.records[a.id] || {}; days7.forEach(function (iso) { if (rr[iso] && rr[iso].readiness != null) filled++; }); });
+    var coverage = n ? Math.round(filled / (n * 7) * 100) : 0;
+    var audit = allAudit();
+    var todayEvents = audit.filter(function (e) { return e.ts >= t0.getTime(); }).length;
+    var bAge = daysAgo(pilot.lastBackup);
+    var keys = consentKeys();
+    var withHealth = ath.filter(function (a) { return consentOf(a.id, 'health'); }).length;
+    var f = state.auditFilter || 'all';
+    var FILTERS = [['all', 'Все'], ['access', 'Доступ'], ['decision', 'Решения'], ['data', 'Данные'], ['system', 'Система']];
+    function inFilter(e) {
+      if (f === 'all') return true;
+      if (f === 'access') return e.kind === 'role' || e.kind === 'staff' || e.kind === 'consent' || e.kind === 'access';
+      if (f === 'decision') return e.kind === 'decision';
+      if (f === 'data') return e.kind === 'data' || e.kind === 'checkin' || e.kind === 'athlete' || e.kind === 'report';
+      return e.kind === 'system';
+    }
+    var shown = audit.filter(inFilter).slice(0, 60);
+    var seg = '<div class="seg" role="group" aria-label="Фильтр журнала">' + FILTERS.map(function (x) { return '<button type="button" data-audit-f="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    var ca = byId(state.consentAthlete) || model.athletes[0];
+    var mv = ML && ML.models ? ML.models.injury.version : '—';
+    var storage = 0; try { storage = (localStorage.getItem(PSTORE) || '').length * 2; } catch (e) { /* noop */ }
+    function sys(t, sub, cls, badge, btn) { return '<div class="sys-row"><span class="grow"><b>' + t + '</b><span>' + sub + '</span></span>' + (btn || '') + '<span class="badge ' + cls + '">' + badge + '</span></div>'; }
+    return pageHead('admin', '<button class="btn btn-ghost" type="button" data-action="audit-export">' + icon('download') + '<span class="lbl">Журнал в CSV</span></button>') +
+      '<div class="grid g-4">' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Спортсмены</span><span class="kpi-ic i">' + icon('users', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + n + '</span></div><div class="kpi-foot"><span class="delta flat">' + num(pilotRecordCount()) + '</span>записей в журнале</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Чек-ины за 7 дней</span><span class="kpi-ic m">' + icon('brain', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + coverage + '<small>%</small></span></div><div class="kpi-foot"><span class="delta ' + (coverage >= 70 ? 'up' : 'down') + '">' + filled + ' из ' + n * 7 + '</span>ожидаемых ответов</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Согласия на данные</span><span class="kpi-ic v">' + icon('shield', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + withHealth + '<small>/ ' + n + '</small></span></div><div class="kpi-foot"><span class="delta ' + (withHealth === n ? 'up' : 'down') + '">' + (n - withHealth) + '</span>без отметки о согласии</div></article>' +
+        '<article class="panel kpi"><div class="kpi-top"><span>Резервная копия</span><span class="kpi-ic o">' + icon('download', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val" style="font-size:24px">' + agoText(pilot.lastBackup) + '</span></div><div class="kpi-foot"><span class="delta ' + (bAge != null && bAge <= 7 ? 'up' : 'down') + '">' + (bAge != null && bAge <= 7 ? 'в норме' : 'пора') + '</span>рекомендуем раз в неделю</div></article>' +
+      '</div>' +
+      '<div class="grid g-main">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Сотрудники и роли</h2><p>Кто работает с данными на этом устройстве. Роль определяет, какие данные видны</p></div><button class="btn btn-ghost btn-sm" type="button" data-action="staff">' + icon('sliders', 'icon-sm') + 'Изменить имена</button></div>' +
+          '<div class="table-wrap"><table class="table staff-table"><caption class="sr-only">Сотрудники устройства</caption><thead><tr><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col">Доступ к данным</th></tr></thead><tbody>' +
+          Object.keys(ROLES).map(function (k) {
+            var r = who(k);
+            var scope = { doctor: 'Все данные, включая анализы', coach: 'Готовность и нагрузка, без медданных', psych: 'Ответы чек-ина детально', admin: 'Согласия, журнал, безопасность — без медданных' }[k];
+            return '<tr tabindex="-1" style="cursor:default"><td><span class="person"><span class="avatar ' + avClass(k) + '">' + esc(r.initials) + '</span><span><b>' + esc(r.name) + '</b><span>' + (r.unnamed ? 'имя не указано' : (state.role === k ? 'работает сейчас' : '&nbsp;')) + '</span></span></span></td><td>' + esc(r.title) + '</td><td class="muted" style="font-size:13px">' + scope + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<div class="panel-foot"><span>' + icon('lock', 'icon-sm') + ' Данные не покидают устройство — общий доступ даётся передачей зашифрованной копии</span></div></section>' +
+        '<section class="panel"><div class="panel-head"><div><h2>Безопасность и данные</h2><p>Состояние рабочего пространства «' + esc(pilot.team.name) + '»</p></div><span class="badge ice plain">' + icon('cpu', 'icon-sm') + 'v' + mv + '</span></div><div class="panel-body" style="display:flex;flex-direction:column;gap:10px">' +
+          sys('Хранение', 'Только этот браузер · ' + num(Math.max(1, Math.round(storage / 1024))) + ' КБ · без сервера', 'ok', 'Локально') +
+          sys('Ключ ссылок чек-ина', pilot.team.key ? 'Создан ' + agoText(pilot.team.keyAt || pilot.team.created) : 'Будет создан при первой ссылке', pilot.team.key ? 'ok' : 'mute', pilot.team.key ? 'Активен' : 'Нет', '<button class="btn btn-quiet btn-sm" type="button" data-action="rotate-key">Сменить</button>') +
+          sys('Резервная копия', 'Последняя: ' + agoText(pilot.lastBackup), bAge != null && bAge <= 7 ? 'ok' : 'warn', bAge != null && bAge <= 7 ? 'В норме' : 'Сделайте', '<button class="btn btn-quiet btn-sm" type="button" data-action="pilot-backup">Создать</button>') +
+          sys('Модели ИИ v' + mv, 'Инференс в браузере · ' + (ML && ML.ready ? 'загружены' : 'не загружены'), ML && ML.ready ? 'ok' : 'warn', ML && ML.ready ? 'Активно' : 'Ошибка') +
+          sys('Офлайн-режим', 'Кабинет открывается без интернета после первого визита', 'serviceWorker' in navigator ? 'ok' : 'mute', 'serviceWorker' in navigator ? 'Доступен' : 'Нет') +
+        '</div></section>' +
+      '</div>' +
+      '<div class="grid g-main">' +
+        '<section class="panel"><div class="panel-head"><div><h2>Журнал аудита <span class="badge plain mute">' + audit.length + '</span></h2><p>Кто, что и когда сделал. Журнал входит в резервную копию и не очищается</p></div></div>' +
+          '<div class="table-tools"><div class="left">' + seg + '</div></div>' +
+          '<div class="audit-list">' + (shown.map(function (e) {
+            var k = AUDIT_KINDS[e.kind] || ['info', 'Событие'];
+            return '<div class="audit-row"><span class="ai-ic">' + icon(k[0] === 'user' ? 'users' : k[0], 'icon-sm') + '</span><div class="grow"><b>' + esc(e.text) + '</b><span>' + esc(e.by) + ' · ' + esc(e.role) + '</span></div><time class="muted">' + fmtTime.format(new Date(e.ts)) + '</time></div>';
+          }).join('') || '<div class="empty">' + icon('search') + 'В этой категории пока нет событий.</div>') + '</div>' +
+          '<div class="panel-foot"><span>Показано ' + shown.length + ' из ' + audit.filter(inFilter).length + '</span><span>Хранится 1000 последних событий</span></div></section>' +
+        '<section class="panel"><div class="panel-head"><div><h2>Согласия спортсменов</h2><p>Отметьте, какие письменные согласия получены</p></div></div><div class="panel-body" style="display:flex;flex-direction:column;gap:16px">' +
+          '<div class="consent-cover">' + keys.map(function (k) {
+            var c = ath.filter(function (a) { return consentOf(a.id, k[0]); }).length;
+            var pct = n ? Math.round(c / n * 100) : 0;
+            return '<div class="factor"><div class="factor-row"><span>' + k[1] + '</span><span>' + c + ' из ' + n + '</span></div><div class="factor-track"><i style="width:' + pct + '%;background:' + (pct === 100 ? 'var(--mint)' : pct >= 90 ? 'var(--violet-strong)' : 'var(--orange)') + '"></i></div></div>';
+          }).join('') + '</div>' +
+          (ca ? athleteSelect('consent-select', ca.id, 'Спортсмен для настройки согласий') +
+          '<div class="consent-grid">' + keys.map(function (k) {
+            var on = consentOf(ca.id, k[0]);
+            return '<label class="consent-row"><span class="grow"><b>' + k[1] + '</b><span>' + k[2] + '</span></span><span class="switch"><input type="checkbox" data-consent="' + k[0] + '" data-athlete="' + ca.id + '" ' + (on ? 'checked' : '') + '><span class="track"></span></span></label>';
+          }).join('') + '</div>' : '') +
+          '<div class="note">' + icon('shield', 'icon-sm') + '<span>Храните подписанные согласия у себя. Если спортсмен отозвал согласие — удалите его записи в журнале или самого спортсмена из состава; каждое изменение фиксируется в журнале аудита.</span></div>' +
+        '</div></section>' +
+      '</div>' + footerStrip();
+  }
   MOUNT.admin = function () {
     var sel = document.getElementById('consent-select');
     if (sel) sel.addEventListener('change', function () { state.consentAthlete = sel.value; save(); render(); });
@@ -1788,8 +2290,12 @@
       el.addEventListener('change', function () {
         var id = el.getAttribute('data-athlete'), key = el.getAttribute('data-consent');
         var a = byId(id);
-        (state.consents[id] = state.consents[id] || {})[key] = el.checked;
-        var k = CONSENT_KEYS.filter(function (x) { return x[0] === key; })[0];
+        if (isPilot()) {
+          pilot.consents = pilot.consents || {};
+          (pilot.consents[id] = pilot.consents[id] || {})[key] = el.checked;
+          savePilot();
+        } else (state.consents[id] = state.consents[id] || {})[key] = el.checked;
+        var k = consentKeys().filter(function (x) { return x[0] === key; })[0];
         logEvent('consent', 'Согласие «' + k[1] + '» для ' + (a ? a.short : id) + ': ' + (el.checked ? 'дано' : 'отозвано'));
         render(); toast(el.checked ? 'Согласие записано' : 'Согласие отозвано · зафиксировано в журнале');
       });
@@ -1866,7 +2372,7 @@
         } else {
           state.custom = state.custom.filter(function (c) { return c.id !== rid; });
           delete state.checkins[rid];
-          logEvent('athlete', 'Удалён демо-профиль спортсмена' + (rmA ? ': ' + rmA.short : ''));
+          logEvent('athlete', (isPilot() ? 'Удалён спортсмен из состава' : 'Удалён демо-профиль спортсмена') + (rmA ? ': ' + rmA.short : ''));
         }
         save(); rebuild(); closeDrawer(); render(); toast(isPilot() ? 'Спортсмен удалён из состава' : 'Профиль удалён из демо-состава');
       }
@@ -1884,7 +2390,7 @@
     openModal('<div class="modal-head"><span class="mi">' + icon('file') + '</span><div><h2 id="modal-title">Создать отчёт</h2><p>Экспорт показателей команды в CSV для Excel</p></div></div>' +
       '<div class="modal-body"><div class="field"><label for="rep-type">Тип отчёта</label><select class="select" id="rep-type">' + Object.keys(REPORTS).map(function (k) { return '<option value="' + k + '">' + REPORTS[k].title + '</option>'; }).join('') + '</select></div>' +
       '<div class="note">' + icon('users', 'icon-sm') + '<span><b>Демо-команда</b><br>' + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + ' · срез на ' + fmtFull.format(asOfDate()) + '</span></div>' +
-      '<p class="muted" style="margin:0;font-size:12.5px">Экспорт содержит демонстрационный срез, а не исторические измерения или медицинские заключения.</p></div>' +
+      '<p class="muted" style="margin:0;font-size:12.5px">' + (isPilot() ? 'Экспорт содержит срез на выбранную дату. Прогнозы моделей не являются медицинским заключением.' : 'Экспорт содержит демонстрационный срез, а не исторические измерения или медицинские заключения.') + '</p></div>' +
       '<div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Отмена</button><button class="btn btn-primary" type="button" id="rep-go">' + icon('download', 'icon-sm') + 'Скачать отчёт</button></div>', {
       mount: function (m) { m.querySelector('#rep-go').addEventListener('click', function () { downloadReport(m.querySelector('#rep-type').value); closeModal(); }); }
     });
@@ -1921,7 +2427,7 @@
             logEvent('athlete', 'Добавлен спортсмен в состав: ' + val);
           } else {
             state.custom.push({ id: id, name: val, pos: m.querySelector('#add-pos').value, num: nv });
-            logEvent('athlete', 'Добавлен демо-профиль спортсмена: ' + val);
+            logEvent('athlete', (isPilot() ? 'Добавлен спортсмен: ' : 'Добавлен демо-профиль спортсмена: ') + val);
           }
           save(); rebuild(); closeModal();
           if (current.page !== 'athletes') go('athletes'); else render();
@@ -2047,10 +2553,11 @@
     });
   }
   function profilePopover(btn) {
-    var html = '<h3>Роль в демо-кабинете</h3>' + Object.keys(ROLES).map(function (k) {
-      var r = ROLES[k];
-      return '<button class="menu-item" type="button" role="menuitemradio" aria-checked="' + (state.role === k) + '" data-role="' + k + '"><span class="avatar ' + avClass(k) + '" style="width:30px;height:30px;font-size:11px">' + r.initials + '</span><span><b style="font-weight:600">' + r.name + '</b><span class="sub">' + r.title + '</span></span>' + (state.role === k ? icon('check', 'icon-sm tick') : '') + '</button>';
+    var html = '<h3>' + (isPilot() ? 'Кто работает на устройстве' : 'Роль в демо-кабинете') + '</h3>' + Object.keys(ROLES).map(function (k) {
+      var r = who(k);
+      return '<button class="menu-item" type="button" role="menuitemradio" aria-checked="' + (state.role === k) + '" data-role="' + k + '"><span class="avatar ' + avClass(k) + '" style="width:30px;height:30px;font-size:11px">' + esc(r.initials) + '</span><span><b style="font-weight:600">' + esc(r.name) + '</b><span class="sub">' + (r.unnamed ? 'имя не указано' : esc(r.title)) + '</span></span>' + (state.role === k ? icon('check', 'icon-sm tick') : '') + '</button>';
     }).join('') + '<div class="menu-sep"></div>' +
+      (isPilot() ? '<button class="menu-item" type="button" role="menuitem" data-action="staff">' + icon('users', 'icon-sm') + 'Имена сотрудников</button>' : '') +
       '<a class="menu-item" href="#/settings" role="menuitem">' + icon('settings', 'icon-sm') + 'Настройки</a>' +
       '<a class="menu-item" href="#/help" role="menuitem">' + icon('help', 'icon-sm') + 'Помощь и поддержка</a>' +
       '<a class="menu-item" href="/" role="menuitem">' + icon('logout', 'icon-sm') + 'Выйти на сайт</a>';
@@ -2072,7 +2579,7 @@
   }
   function notifPopover(btn) {
     var notes = buildNotes();
-    var html = '<div class="notif-head"><b>Уведомления</b><span class="muted" style="font-size:12.5px">События команды · демо</span></div><div class="notif-list">' +
+    var html = '<div class="notif-head"><b>Уведомления</b><span class="muted" style="font-size:12.5px">' + (isPilot() ? 'События команды' : 'События команды · демо') + '</span></div><div class="notif-list">' +
       notes.map(function (n, i) { return '<button class="notif-item' + (n.unread ? ' unread' : '') + '" type="button" data-note="' + i + '"><span class="ni ' + (n.kind === 'warn' ? '' : n.kind) + '">' + icon(n.kind === 'warn' ? 'alert' : n.kind === 'ok' ? 'file' : 'info', 'icon-sm') + '</span><span><b>' + esc(n.title) + '</b><span>' + esc(n.text) + '</span><time>' + esc(n.time) + '</time></span></button>'; }).join('') +
       '</div><div class="notif-foot"><button class="btn btn-ghost btn-sm btn-block" type="button" data-readall>' + icon('check', 'icon-sm') + 'Отметить всё прочитанным</button></div>';
     openPopover(btn, html, {
@@ -2155,7 +2662,7 @@
   }
   function decide(id, status) {
     if (status === 'undo') delete state.decisions[id];
-    else state.decisions[id] = { status: status, ts: Date.now(), by: ROLES[state.role].name + ' (' + ROLES[state.role].title.toLowerCase() + ')' };
+    else state.decisions[id] = { status: status, ts: Date.now(), by: who(state.role).name + ' (' + who(state.role).title.toLowerCase() + ')' };
     var rec = buildRecs().filter(function (r) { return r.id === id; })[0];
     logEvent('decision', (status === 'accepted' ? 'Согласована' : status === 'declined' ? 'Отклонена' : 'Отменено решение по') + ' рекомендация «' + (rec ? rec.title : id) + '»' + (rec && rec.a ? ' · ' + rec.a.short : ''));
     save(); render();
@@ -2177,7 +2684,13 @@
       else if (a === 'theme') toggleTheme();
       else if (a === 'cols') colsPopover(act);
       else if (a === 'reset') confirmReset();
+      else if (a === 'print') { logEvent('report', 'Печать / PDF: ' + (current.page === 'twin' ? 'отчёт по спортсмену' : PAGES[current.page][0])); window.print(); }
       else if (a === 'workspace') workspacePopover(act);
+      else if (a === 'athlete-link') athleteLinkModal(act.getAttribute('data-id'));
+      else if (a === 'team-links') teamLinksModal();
+      else if (a === 'inbox') inboxModal();
+      else if (a === 'rotate-key') rotateTeamKey();
+      else if (a === 'staff') staffModal();
       else if (a === 'team-load') teamLoadModal();
       else if (a === 'pilot-import') importHistoryModal();
       else if (a === 'pilot-backup') backupModal();
@@ -2226,6 +2739,10 @@
     if (ts) { state.theme = ts.getAttribute('data-theme-set'); save(); applyTheme(); render(); return; }
     var rs = t.closest('[data-role-set]');
     if (rs) { setRole(rs.getAttribute('data-role-set')); return; }
+    var je = t.closest('[data-jedit]');
+    if (je) { journalEditModal(je.getAttribute('data-jid'), je.getAttribute('data-jedit')); return; }
+    var jd = t.closest('[data-jdel]');
+    if (jd) { journalDeleteModal(jd.getAttribute('data-jid'), jd.getAttribute('data-jdel')); return; }
     var wg = t.closest('[data-ws-go]');
     if (wg) {
       var to2 = wg.getAttribute('data-ws-go');
@@ -2271,7 +2788,11 @@
   if (kh && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) kh.textContent = '⌘ K';
   document.querySelectorAll('[data-year]').forEach(function (el) { el.textContent = String(new Date().getFullYear()); });
 
-  window.addEventListener('hashchange', function () { closeDrawer(true); closePopover(); render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', function () {
+    if (handleIncomingHash()) { render(); return; }
+    closeDrawer(true); closePopover(); render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0);
+  });
   applyTheme();
+  handleIncomingHash();
   render();
 })();
