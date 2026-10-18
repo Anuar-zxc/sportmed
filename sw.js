@@ -1,13 +1,13 @@
 /* AI Sports — service worker: работа без сети и установка на телефон/компьютер.
    Всегда сначала сеть (чтобы после релиза сразу была новая версия), кэш — только когда сети нет.
    Шрифты /gf/ неизменяемые — из кэша. Данные пользователя здесь не хранятся: они в localStorage. */
-var CACHE = 'asp-shell-v4';
+var CACHE = 'asp-shell-v5';
 var SHELL = [
   '/', '/app', '/checkin', '/privacy', '/terms', '/cookies', '/consent',
   '/styles.css', '/app.css', '/landing.css', '/checkin.css', '/fonts.css',
   '/theme-init.js', '/main.js', '/app.js', '/data.js', '/model.js', '/models.js',
   '/asp-crypto.js', '/checkin.js', '/vendor/qrcode.js', '/sw-register.js',
-  '/favicon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'
+  '/fonts/inter-latin.woff2', '/fonts/inter-cyrillic.woff2', '/favicon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', function (e) {
@@ -27,7 +27,7 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.indexOf('/gf/') === 0) {
+  if (url.pathname.indexOf('/gf/') === 0 || url.pathname.indexOf('/fonts/') === 0) {
     e.respondWith(caches.match(req).then(function (hit) {
       return hit || fetch(req).then(function (res) {
         if (res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }

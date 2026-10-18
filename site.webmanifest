@@ -5,8 +5,8 @@
   "lang": "ru",
   "start_url": "/app",
   "display": "standalone",
-  "background_color": "#0b0814",
-  "theme_color": "#0b0814",
+  "background_color": "#fbf8f3",
+  "theme_color": "#fbf8f3",
   "icons": [
     {
       "src": "icon-192.png",

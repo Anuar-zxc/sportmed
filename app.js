@@ -14,7 +14,7 @@
   /* ======================= State ======================= */
   function defaults() {
     return {
-      theme: 'dark', compact: false, role: 'doctor', offset: 0,
+      theme: 'light', ui: 2, compact: false, role: 'doctor', offset: 0,
       custom: [], checkins: {}, decisions: {}, read: [],
       staff: null, consents: {}, audit: [], auditFilter: 'all', consentAthlete: 'a03', ws: 'demo',
       cols: { readiness: true, recovery: true, risk: true, sleep: true, hrv: false, status: true },
@@ -28,11 +28,13 @@
       var saved = JSON.parse(localStorage.getItem(STORE) || '{}');
       Object.keys(saved).forEach(function (k) { if (k in s) s[k] = saved[k]; });
       if (saved.cols) s.cols = Object.assign(defaults().cols, saved.cols);
+      if (saved.ui !== 2) { s.theme = 'light'; s.ui = 2; } // новое оформление: один раз переключаем на светлую тему
     } catch (e) { /* ignore */ }
     return s;
   }
   var state = load();
   function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+  save();
 
   /* ----- Рабочее пространство «Моя команда» (режим пилота): данные только на этом устройстве ----- */
   function loadPilot() {
@@ -417,10 +419,10 @@
 
   function applyTheme() {
     var t = state.theme;
-    if (t === 'system') t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    if (t === 'system') t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', t);
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', t === 'light' ? '#f5f3fa' : '#0b0814');
+    if (meta) meta.setAttribute('content', t === 'light' ? '#fbf8f3' : '#12100d');
     var ti = document.getElementById('theme-icon');
     if (ti) ti.setAttribute('href', t === 'light' ? '#i-moon' : '#i-sun');
     if (state.compact) document.documentElement.setAttribute('data-density', 'compact'); else document.documentElement.removeAttribute('data-density');
@@ -1244,7 +1246,7 @@
 
   /* ---------- Settings ---------- */
   RENDER.settings = function () {
-    var themeSeg = '<div class="seg" role="group" aria-label="Тема">' + [['dark', 'Тёмная'], ['light', 'Светлая'], ['system', 'Как в системе']].map(function (x) { return '<button type="button" data-theme-set="' + x[0] + '" aria-pressed="' + (state.theme === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    var themeSeg = '<div class="seg" role="group" aria-label="Тема">' + [['light', 'Светлая'], ['dark', 'Тёмная'], ['system', 'Как в системе']].map(function (x) { return '<button type="button" data-theme-set="' + x[0] + '" aria-pressed="' + (state.theme === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
     var roleSeg = '<div class="seg" role="group" aria-label="Роль">' + Object.keys(ROLES).map(function (k) { return '<button type="button" data-role-set="' + k + '" aria-pressed="' + (state.role === k) + '">' + ROLES[k].title + '</button>'; }).join('') + '</div>';
     var sources = [['G', 'Garmin', 'Health API · сон, HRV, нагрузка'], ['AH', 'Apple Health', 'HealthKit через приложение спортсмена'], ['P', 'Polar', 'AccessLink · тренировки и пульс'], ['O', 'Oura Ring', 'Сон и восстановление'], ['W', 'Whoop', 'Восстановление и нагрузка'], ['Lab', 'Лабораторная система', 'Импорт результатов анализов'], ['AS', 'Браслет AI Sports', 'Собственное устройство платформы']];
     var M = [['Готовность и восстановление', 'y', 'y', 'y', 'n'], ['Данные носимых устройств', 'y', 'y', 'y', 'n'], ['Лабораторные анализы', 'y', 'n', 'n', 'n'], ['Журнал травм и болезней', 'y', 'p', 'n', 'n'], ['Ответы чек-ина (детально)', 'n', 'n', 'y', 'n'], ['Статус чек-ина (обобщённо)', 'y', 'p', 'y', 'n'], ['Пользователи, согласия, аудит', 'n', 'n', 'n', 'y']];
@@ -1830,7 +1832,7 @@
     qr.addData(text); qr.make();
     var n = qr.getModuleCount(), q = 2, size = n + q * 2, d = '';
     for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
-    return '<svg class="qr" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="QR-код ссылки на чек-ин" shape-rendering="crispEdges"><rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#14091f"/></svg>';
+    return '<svg class="qr" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="QR-код ссылки на чек-ин" shape-rendering="crispEdges"><rect width="' + size + '" height="' + size + '" fill="#fff"/><path d="' + d + '" fill="#1d1b17"/></svg>';
   }
   function copyText(text, okMsg) {
     var p = navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject();
