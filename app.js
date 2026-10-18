@@ -14,7 +14,7 @@
   /* ======================= State ======================= */
   function defaults() {
     return {
-      theme: 'light', ui: 2, compact: false, role: 'doctor', offset: 0,
+      theme: 'light', ui: 2, compact: false, role: 'doctor', offset: 0, profile: null,
       custom: [], checkins: {}, decisions: {}, read: [],
       staff: null, consents: {}, audit: [], auditFilter: 'all', consentAthlete: 'a03', ws: 'demo',
       cols: { readiness: true, recovery: true, risk: true, sleep: true, hrv: false, status: true },
@@ -82,8 +82,9 @@
   }
   function who(k) {
     var base = ROLES[k] || ROLES.doctor;
-    if (!isPilot()) return base;
-    var nm = String((pilot.staff || {})[k] || '').trim().slice(0, 60);
+    var pn = state.profile && state.profile.role === k ? String(state.profile.name || '').trim().slice(0, 60) : '';
+    if (!isPilot()) return pn ? { name: pn, initials: initialsOf(pn), title: base.title } : base;
+    var nm = String((pilot.staff || {})[k] || pn || '').trim().slice(0, 60);
     return { name: nm || base.title, initials: nm ? initialsOf(nm) : initialsOf(base.title), title: base.title, unnamed: !nm };
   }
   function can(what) {
@@ -520,6 +521,9 @@
     view.innerHTML = html;
     mountCharts(view);
     if (MOUNT[page]) MOUNT[page]();
+    animateNumbers(view);
+    mountLive(view);
+    view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter');
     updateShell();
     document.body.classList.remove('side-open');
     var st = document.querySelector('.side-toggle');
@@ -933,12 +937,13 @@
     var aria = segs.map(function (x) { return x[1] + ' ' + x[2]; }).join(', ');
     var risks = t.list.map(function (x) { return x.s.risk; }).filter(function (v) { return v != null && v === v; });
     var avgRisk = risks.length ? D.mean(risks) : null;
+    var onBand = Math.max(0, t.total - t.nodata.length), avgHr = Math.round(D.mean(t.list.map(function (x) { return x.s.rhr; }).filter(function (v) { return v != null; })) || 56);
     return '<section class="today" aria-labelledby="today-title">' +
       '<div class="today-main">' +
         '<h2 id="today-title">Готовность команды</h2>' +
-        '<p class="hero-fig">' + (t.readiness == null ? '—' : t.readiness) + '<span>из 100</span></p>' +
-        '<p class="today-sub">' + deltaTxt(dR, 'за неделю') + '</p>' +
-        '<p class="today-note">' + insight + '</p>' +
+        '<div class="today-ring">' + ring({ value: t.readiness, label: 'из 100', size: 190, stroke: 14, color: 'url(#g-ring)' }) +
+          '<div><p class="today-sub">' + deltaTxt(dR, 'за неделю') + '</p><p class="today-note">' + insight + '</p></div></div>' +
+        liveStrip({ title: 'Браслеты на связи', sub: onBand + ' из ' + t.total + ' · данные за ночь получены', hr: avgHr }) +
       '</div>' +
       '<div class="today-split">' +
         '<div class="split-head"><h3>Состав на ' + fmtFull.format(asOfDate()) + '</h3><span>' + t.total + ' ' + plural(t.total, 'спортсмен', 'спортсмена', 'спортсменов') + '</span></div>' +
@@ -953,6 +958,139 @@
         '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small></dd><p>на 7 дней, по модели</p></div>' +
       '</dl>' +
     '</section>';
+  }
+
+  /* ======================= Живые элементы: кольца, лента браслета, набегающие числа ======================= */
+  var ringSeq = 0;
+  /* Кольцо показателя (как у WHOOP): дуга 270°, цвет по значению, число набегает при появлении */
+  function ring(o) {
+    var id = 'rg' + (++ringSeq), v = o.value, size = o.size || 150, sw = o.stroke || 11, r = (size - sw) / 2 - 2, c = 2 * Math.PI * r, arc = c * 0.75;
+    var pct = v == null ? 0 : Math.max(0, Math.min(1, v / (o.max || 100)));
+    var col = o.color || (v == null ? 'var(--st-none)' : pct >= 0.67 ? 'var(--st-ok)' : pct >= 0.34 ? 'var(--st-warn)' : 'var(--st-bad)');
+    return '<div class="ring" data-ring style="--size:' + size + 'px"><svg viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
+      '<circle class="ring-track" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" stroke-width="' + sw + '" stroke-dasharray="' + arc + ' ' + c + '" transform="rotate(135 ' + size / 2 + ' ' + size / 2 + ')"/>' +
+      '<circle class="ring-fill" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" stroke-width="' + sw + '" style="stroke:' + col + '" stroke-dasharray="' + (arc * pct) + ' ' + c + '" data-target="' + (arc * pct) + ' ' + c + '" transform="rotate(135 ' + size / 2 + ' ' + size / 2 + ')"/>' +
+      '</svg><div class="ring-in"><b data-count="' + (v == null ? '' : v) + '" data-dec="' + (o.dec || 0) + '">' + (v == null ? '—' : num(v, o.dec || 0)) + '</b>' + (o.unit ? '<small>' + o.unit + '</small>' : '') + '<span>' + esc(o.label) + '</span></div>' +
+      (o.foot ? '<p class="ring-foot">' + o.foot + '</p>' : '') + '</div>';
+  }
+  /* Числа «набегают» и дуги колец заполняются один раз после отрисовки раздела */
+  function animateNumbers(root) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var t0 = performance.now(), D0 = 900;
+    var items = Array.prototype.slice.call(root.querySelectorAll('[data-count]')).map(function (el) {
+      var v = parseFloat(el.getAttribute('data-count')); if (!(v === v)) return null;
+      return { el: el, v: v, dec: +el.getAttribute('data-dec') || 0, suffix: '' };
+    }).filter(Boolean);
+    root.querySelectorAll('.ring-fill').forEach(function (c) { var t = c.getAttribute('data-target'); c.setAttribute('stroke-dasharray', '0 99999'); requestAnimationFrame(function () { c.style.transition = 'stroke-dasharray 1.1s cubic-bezier(.2,.7,.2,1)'; c.setAttribute('stroke-dasharray', t); }); });
+    if (!items.length) return;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / D0), e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) { it.el.textContent = num(it.v * e, it.dec); });
+      if (k < 1) requestAnimationFrame(frame); else items.forEach(function (it) { it.el.textContent = num(it.v, it.dec); });
+    }
+    requestAnimationFrame(frame);
+  }
+  /* Лента браслета: пульс идёт в реальном времени (симуляция вокруг пульса покоя спортсмена или команды) */
+  var LIVE = { timer: null };
+  function liveStrip(o) {
+    return '<div class="live" data-live-strip data-hr="' + (o.hr || 58) + '"><div class="live-head"><span class="live-dot"></span><b>' + esc(o.title || 'Браслет на связи') + '</b><span class="live-sub">' + esc(o.sub || '') + '</span><span class="live-val"><b data-live-hr>' + (o.hr || 58) + '</b> уд/мин</span></div>' +
+      '<canvas class="live-canvas" height="64" aria-label="Лента пульса с браслета в реальном времени"></canvas></div>';
+  }
+  function mountLive(root) {
+    if (LIVE.timer) { cancelAnimationFrame(LIVE.timer); LIVE.timer = null; }
+    var strip = root.querySelector('[data-live-strip]'); if (!strip) return;
+    var cv = strip.querySelector('canvas'), ctx = cv.getContext('2d'), hrEl = strip.querySelector('[data-live-hr]');
+    var baseHr = +strip.getAttribute('data-hr') || 58, hr = baseHr, phase = 0, buf = [], W = 0, H = 64, dpr = Math.min(2, window.devicePixelRatio || 1);
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function size() { W = strip.clientWidth; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    size();
+    var col = getComputedStyle(document.documentElement).getPropertyValue('--s1').trim() || '#d9661f';
+    function ecg(t) { // форма QRS на периоде 1
+      var x = t % 1;
+      if (x < 0.08) return Math.sin(x / 0.08 * Math.PI) * 0.12;        // P
+      if (x < 0.14) return 0;
+      if (x < 0.17) return -0.18 * ((x - 0.14) / 0.03);                 // Q
+      if (x < 0.21) return -0.18 + 1.18 * ((x - 0.17) / 0.04);          // R up
+      if (x < 0.26) return 1 - 1.35 * ((x - 0.21) / 0.05);              // R down to S
+      if (x < 0.30) return -0.35 + 0.35 * ((x - 0.26) / 0.04);
+      if (x < 0.48) return 0;
+      if (x < 0.62) return Math.sin((x - 0.48) / 0.14 * Math.PI) * 0.26; // T
+      return 0;
+    }
+    var last = performance.now();
+    function tick(now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!reduced) { phase += dt * hr / 60; }
+      if (Math.random() < 0.02) { hr = Math.max(44, Math.min(110, hr + (Math.random() - 0.5) * 3)); hrEl.textContent = Math.round(hr); }
+      var samples = Math.max(1, Math.round(dt * 180));
+      for (var i = 0; i < samples; i++) buf.push(ecg(phase - (samples - i) * dt / samples * hr / 60) + (Math.random() - 0.5) * 0.03);
+      var maxPts = Math.floor(W / 1.6); if (buf.length > maxPts) buf.splice(0, buf.length - maxPts);
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (var j = 0; j < buf.length; j++) { var x = j * 1.6, y = H * 0.62 - buf[j] * H * 0.48; j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke();
+      // левый край плавно уходит: рисуем через globalCompositeOperation, чтобы не зависеть от цвета фона
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      var fade = ctx.createLinearGradient(0, 0, 70, 0); fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = fade; ctx.fillRect(0, 0, 70, H); ctx.restore();
+      if (buf.length) { var lx = (buf.length - 1) * 1.6, ly = H * 0.62 - buf[buf.length - 1] * H * 0.48; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(lx, ly, 3, 0, 7); ctx.fill(); }
+      if (!reduced) LIVE.timer = requestAnimationFrame(tick); else LIVE.timer = null;
+    }
+    LIVE.timer = requestAnimationFrame(tick);
+    window.addEventListener('resize', size, { passive: true });
+  }
+
+  /* ======================= Вход: профиль специалиста на этом устройстве ======================= */
+  function hasProfile() { return !!(state.profile && state.profile.name); }
+  function welcomeScreen() {
+    var root = document.getElementById('welcome');
+    if (!root) { root = document.createElement('div'); root.id = 'welcome'; root.className = 'welcome'; document.body.appendChild(root); }
+    document.body.classList.add('has-welcome');
+    var roles = Object.keys(ROLES).map(function (k) { return '<label class="wc-role"><input type="radio" name="wc-role" value="' + k + '"' + (k === 'doctor' ? ' checked' : '') + '><span>' + ROLES[k].title + '</span></label>'; }).join('');
+    root.innerHTML =
+      '<div class="wc-left" aria-hidden="true">' +
+        '<div class="wc-brand"><svg viewBox="0 0 34 34"><rect width="34" height="34" rx="10" fill="url(#g-brand)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#2a1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>AI Sports</div>' +
+        '<div class="wc-band"><img src="band-v500-s.webp" width="520" height="520" alt=""><span class="wc-dot"></span></div>' +
+        '<div class="wc-chips"><span><b>61</b> уд/мин</span><span><b>64</b> HRV</span><span><b>98%</b> SpO₂</span><span><b>7:42</b> сон</span></div>' +
+        '<p class="wc-tag">Браслет измеряет ночью. Утром решение принимаете вы.</p>' +
+      '</div>' +
+      '<form class="wc-form" id="wc-form" novalidate>' +
+        '<h1>Добро пожаловать в кабинет</h1>' +
+        '<p class="wc-sub">Представьтесь — имя появится в шапке, журнале действий и отчётах. Всё хранится только на этом устройстве.</p>' +
+        '<div class="field"><label for="wc-name">Имя и фамилия</label><input class="input" id="wc-name" maxlength="60" autocomplete="name" placeholder="Например, Ербол Сапаров" required aria-describedby="wc-err"><span class="err" id="wc-err"></span></div>' +
+        '<div class="field"><span class="label">Ваша роль</span><div class="wc-roles" role="radiogroup" aria-label="Роль">' + roles + '</div></div>' +
+        '<div class="wc-ways">' +
+          '<button class="wc-way" type="submit" data-way="pilot"><b>' + icon('users', 'icon-sm') + 'Создать команду</b><span>Реальный состав, чек-ины с телефона, браслет и отчёты. Для пилота.</span></button>' +
+          '<button class="wc-way" type="submit" data-way="demo"><b>' + icon('spark', 'icon-sm') + 'Сначала посмотреть на демо</b><span>24 вымышленных спортсмена и 84 дня данных. Команду можно создать позже.</span></button>' +
+        '</div>' +
+        '<p class="wc-foot">Нажимая кнопку, вы принимаете <a href="/terms">условия использования</a>. Платформа не является медицинским изделием.</p>' +
+      '</form>';
+    var way = 'pilot';
+    root.querySelectorAll('.wc-way').forEach(function (b) { b.addEventListener('click', function () { way = b.getAttribute('data-way'); }); });
+    root.querySelector('#wc-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nm = root.querySelector('#wc-name'), name = nm.value.replace(/\s+/g, ' ').trim();
+      if (name.length < 2) { nm.setAttribute('aria-invalid', 'true'); root.querySelector('#wc-err').textContent = 'Укажите имя — оно нужно для журнала действий'; nm.focus(); return; }
+      var role = (root.querySelector('input[name="wc-role"]:checked') || {}).value || 'doctor';
+      state.profile = { name: name, role: role, ts: Date.now() };
+      state.role = role;
+      if (way === 'demo') state.ws = 'demo';
+      save();
+      if (pilot && !pilot.staff) pilot.staff = {};
+      if (pilot) { pilot.staff[role] = pilot.staff[role] || name; savePilot(); }
+      root.classList.add('wc-out');
+      setTimeout(function () { root.remove(); document.body.classList.remove('has-welcome'); }, 420);
+      logEvent('role', 'Вход в кабинет: ' + name);
+      if (way === 'pilot' && !pilot) { go('overview'); render(); setTimeout(setupPilotModal, 450); }
+      else { if (way === 'pilot' && pilot) { state.ws = 'pilot'; save(); rebuild(); } go('overview'); render(); toast('Здравствуйте, ' + name.split(' ')[0] + '!'); }
+    });
+    setTimeout(function () { var n = root.querySelector('#wc-name'); if (n) n.focus(); }, 80);
+  }
+  function signOut() {
+    state.profile = null; save();
+    location.hash = '#/overview';
+    welcomeScreen();
   }
 
   /* ---------- Overview ---------- */
@@ -1084,6 +1222,12 @@
       '<section class="panel" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px">' +
         '<div class="person"><span class="kpi-ic v">' + icon('twin', 'icon-sm') + '</span><span><b>Персональный профиль спортсмена</b><span>Данные устройства, анализы, нагрузка и самочувствие — в одной модели</span></span></div>' +
         athleteSelect('twin-select', a.id, 'Выбрать спортсмена') + '</section>' +
+      '<section class="panel rings-panel"><div class="rings">' +
+        ring({ value: s.recovery, label: 'Восстановление', foot: s.hrv != null ? 'HRV ' + num(s.hrv) + ' мс' + (s.hrvPct != null ? ' · ' + (s.hrvPct > 0 ? '+' : '') + s.hrvPct + '% к норме' : '') : 'Нет данных браслета' }) +
+        ring({ value: s.readiness, label: 'Готовность', foot: s.fc ? 'Завтра ' + num(s.fc.value, 1) + ' / 10 по модели' : 'Нужен утренний чек-ин' }) +
+        ring({ value: s.sleep == null ? null : Math.round(D.clamp(s.sleep / 8.5, 0, 1) * 100), label: 'Сон', foot: s.sleep == null ? 'Нет данных' : D.fmtHours(s.sleep) + ' · цель 8 ч 30' }) +
+        ring({ value: s.risk == null ? null : Math.round(100 - D.clamp(s.risk / 20, 0, 1) * 100), label: 'Запас по травме', foot: s.risk == null ? 'Мало истории нагрузки' : 'Риск ' + num(s.risk, 1) + '% на 7 дней' }) +
+      '</div>' + liveStrip({ title: 'Браслет ' + esc(a.short), sub: s.status === 'nodata' ? 'нет связи больше суток' : 'синхронизация ночью · пульс покоя ' + (s.rhr != null ? num(s.rhr) : '—'), hr: s.rhr || 56 }) + '</section>' +
       '<div class="grid g-main-r">' +
         '<section class="panel twin-profile" aria-label="Профиль">' + avatar(a, 'xl') + '<h2>' + esc(a.short) + '</h2><p>' + esc(a.posName) + ' · № ' + esc(a.num) + (a.age ? ' · ' + a.age + ' лет' : '') + '</p>' + statusBadge(s.status) + radar(axes) +
           '<p style="font-size:12.5px">Шкалы 0–100 относительно личной нормы спортсмена</p></section>' +
@@ -2758,7 +2902,8 @@
       (isPilot() ? '<button class="menu-item" type="button" role="menuitem" data-action="staff">' + icon('users', 'icon-sm') + 'Имена сотрудников</button>' : '') +
       '<a class="menu-item" href="#/settings" role="menuitem">' + icon('settings', 'icon-sm') + 'Настройки</a>' +
       '<a class="menu-item" href="#/help" role="menuitem">' + icon('help', 'icon-sm') + 'Помощь и поддержка</a>' +
-      '<a class="menu-item" href="/" role="menuitem">' + icon('logout', 'icon-sm') + 'Выйти на сайт</a>';
+      '<a class="menu-item" href="/" role="menuitem">' + icon('home', 'icon-sm') + 'На сайт</a>' +
+      '<button class="menu-item" type="button" role="menuitem" data-action="signout">' + icon('logout', 'icon-sm') + 'Выйти' + (state.profile ? ' (' + esc(state.profile.name.split(' ')[0]) + ')' : '') + '</button>';
     openPopover(btn, html, {
       mount: function (p) {
         p.addEventListener('click', function (e) {
@@ -2889,6 +3034,7 @@
       else if (a === 'inbox') inboxModal();
       else if (a === 'rotate-key') rotateTeamKey();
       else if (a === 'staff') staffModal();
+      else if (a === 'signout') { closePopover(); signOut(); }
       else if (a === 'team-load') teamLoadModal();
       else if (a === 'pilot-import') importHistoryModal();
       else if (a === 'pilot-backup') backupModal();
@@ -2995,4 +3141,5 @@
   applyTheme();
   handleIncomingHash();
   render();
+  if (!hasProfile()) welcomeScreen();
 })();

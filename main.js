@@ -225,3 +225,21 @@
     if (e.key === 'ArrowLeft') { e.preventDefault(); car.scrollBy({ left: -stepW(), behavior: smooth }); }
   });
 })();
+
+/* Живые цифры у браслета на главной: лёгкое «дыхание» значений, чтобы сцена не выглядела картинкой */
+(function () {
+  'use strict';
+  var els = document.querySelectorAll('[data-live]');
+  if (!els.length || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  var base = { hr: 61, hrv: 64, spo2: 98, temp: 36.4 };
+  function tick() {
+    els.forEach(function (el) {
+      var k = el.getAttribute('data-live');
+      if (k === 'hr') el.textContent = String(base.hr + Math.round((Math.random() - 0.5) * 4));
+      if (k === 'hrv') el.textContent = String(base.hrv + Math.round((Math.random() - 0.5) * 6));
+      if (k === 'spo2') el.textContent = String(Math.random() < 0.8 ? 98 : 97);
+      if (k === 'temp') el.textContent = (base.temp + (Math.random() - 0.5) * 0.2).toFixed(1).replace('.', ',');
+    });
+  }
+  setInterval(tick, 1800);
+})();

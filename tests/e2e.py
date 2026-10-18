@@ -44,11 +44,13 @@ def test(fn):
 class Page:
     """Страница с учётом ошибок: любая ошибка JS или нарушение CSP валит тест."""
 
-    def __init__(self, browser, mobile=False):
+    def __init__(self, browser, mobile=False, no_profile=False):
         opts = dict(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True) if mobile else dict(viewport={"width": 1440, "height": 960})
         self.ctx = browser.new_context(accept_downloads=True, **opts)
         # согласие на cookie заранее — баннер не перекрывает кнопки
         self.ctx.add_init_script("try{localStorage.getItem('asp_consent')||localStorage.setItem('asp_consent',JSON.stringify({v:2,necessary:true,analytics:false,ts:Date.now()}))}catch(e){}")
+        if not no_profile:  # профиль специалиста уже введён — иначе кабинет показывает экран входа
+            self.ctx.add_init_script("try{var s=JSON.parse(localStorage.getItem('asp_app_v1')||'{}');if(!s.profile){s.profile={name:'Тест Тестов',role:'doctor',ts:1};s.ui=2;s.theme='light';localStorage.setItem('asp_app_v1',JSON.stringify(s))}}catch(e){}")
         self.p = self.ctx.new_page()
         OPEN.append(self)
         self.errors = []
@@ -370,6 +372,39 @@ def reports_pdf_and_csv(b):
     with pg.p.expect_download() as dl:
         pg.p.click("#rep-go")
     assert dl.value.suggested_filename.endswith(".pdf")
+    pg.check_clean()
+    pg.close()
+
+
+@test
+def welcome_sign_in_and_out(b):
+    pg = Page(b, no_profile=True).go("/app#/overview", 600)
+    assert pg.p.is_visible("#welcome") and "Добро пожаловать" in pg.text("#welcome")
+    pg.p.click('[data-way="demo"]')  # без имени — ошибка
+    assert "Укажите имя" in pg.text("#wc-err")
+    pg.p.fill("#wc-name", "Ербол Сапаров")
+    pg.p.click('label.wc-role:has-text("Главный тренер")')
+    pg.p.click('[data-way="demo"]')
+    pg.p.wait_for_selector("#welcome", state="detached", timeout=5000)
+    assert pg.text("#me-name") == "Ербол Сапаров" and pg.text("#me-role") == "Главный тренер"
+    pg.p.reload(); pg.p.wait_for_timeout(800)
+    assert pg.p.locator("#welcome").count() == 0, "после входа экран приветствия не показывается"
+    assert pg.p.locator(".ring").count() >= 1 and pg.p.locator("canvas.live-canvas").count() == 1
+    # выход
+    pg.p.click('[data-action="profile"]'); pg.p.click('[data-action="signout"]'); pg.p.wait_for_timeout(300)
+    assert pg.p.is_visible("#welcome")
+    # вход с созданием команды открывает окно «Моя команда»
+    pg.p.fill("#wc-name", "Айгерим Нурланова"); pg.p.click('[data-way="pilot"]'); pg.p.wait_for_timeout(900)
+    assert pg.p.locator("#pw-form").count() == 1
+    pg.check_clean()
+    pg.close()
+
+
+@test
+def landing_band_scene(b):
+    pg = Page(b).go("/", 800)
+    assert pg.p.locator(".bs-band img").count() == 1 and pg.p.evaluate("document.querySelector('.bs-band img').naturalWidth") > 0
+    assert pg.p.locator(".bs-chip").count() == 5 and "Все измерения снимает один браслет" in pg.text("#band")
     pg.check_clean()
     pg.close()
 

@@ -74,6 +74,7 @@
     </a>
     <nav class="top-nav" aria-label="Основная навигация">
       <a href="#product">Продукт</a>
+      <a href="#band">Браслет</a>
       <a href="#how">Как работает</a>
       <a href="#pilot">Пилот</a>
       <a href="#trust">Безопасность</a>
@@ -115,40 +116,21 @@
       </ul>
     </div>
 
-    <div class="collage" aria-hidden="true">
-      <div class="c-athlete">
-        <div class="ca-media">
-          <span class="ca-av">ЖЕ</span>
-          <b>Ерлан Жаксылыков</b>
-          <span>Полузащитник · № 3</span>
-          <span class="ca-link">Открыть профиль</span>
-        </div>
-        <div class="ca-sec">
-          <span class="ca-h">Сегодня</span>
-          <div class="ca-row"><span class="ca-logo"><svg class="icon-sm"><use href="#i-activity"/></svg></span><b>Готовность к нагрузке</b><span class="ca-pill warn">Внимание</span></div>
-          <div class="ca-stats"><div><b><i class="d-ok"></i>56</b><span>готовность</span></div><div><b>54 мс</b><span>HRV</span></div><div><b>7 ч 50</b><span>сон</span></div></div>
-        </div>
-        <div class="ca-sec">
-          <span class="ca-h">Ранние сигналы</span>
-          <div class="ca-line"><span class="ca-ic"><svg class="icon-sm"><use href="#i-load"/></svg></span><span>Нагрузка к норме</span><b>+41%</b></div>
-          <div class="ca-line"><span class="ca-ic"><svg class="icon-sm"><use href="#i-heart"/></svg></span><span>HRV к норме</span><b>−17%</b></div>
+    <div class="band-scene" aria-label="Браслет AI Sports снимает пульс, вариабельность ритма, кислород в крови и температуру кожи">
+      <div class="bs-stage">
+        <div class="bs-glow"></div>
+        <svg class="bs-orbit" viewBox="0 0 520 520" aria-hidden="true"><circle cx="260" cy="260" r="236" class="o1"/><circle cx="260" cy="260" r="176" class="o2"/></svg>
+        <div class="bs-band"><img src="band-v500.webp" srcset="band-v500-s.webp 520w, band-v500.webp 1000w" sizes="(max-width: 600px) 300px, 420px" width="1000" height="1000" alt="" decoding="async" fetchpriority="high"></div>
+        <div class="bs-sensor"><span></span></div>
+        <div class="bs-ring" aria-hidden="true">
+          <div class="bs-chip" style="--a:-62deg"><i class="hr"><svg class="icon-sm"><use href="#i-heart"/></svg></i><b data-live="hr">61</b><span>уд/мин</span></div>
+          <div class="bs-chip" style="--a:18deg"><i><svg class="icon-sm"><use href="#i-activity"/></svg></i><b data-live="hrv">64</b><span>HRV, мс</span></div>
+          <div class="bs-chip" style="--a:104deg"><i><svg class="icon-sm"><use href="#i-sleep"/></svg></i><b data-live="spo2">98</b><span>SpO₂, %</span></div>
+          <div class="bs-chip" style="--a:196deg"><i><svg class="icon-sm"><use href="#i-flask"/></svg></i><b data-live="temp">36,4</b><span>°C кожи</span></div>
+          <div class="bs-chip" style="--a:278deg"><i><svg class="icon-sm"><use href="#i-sleep"/></svg></i><b data-live="sleep">7:42</b><span>сон</span></div>
         </div>
       </div>
-      <div class="c-side">
-        <div class="c-ill">
-          <svg viewBox="0 0 240 130" class="ill">
-            <path d="M8 104 C60 96 120 96 232 104" class="ln"/>
-            <path d="M8 116 C70 108 130 108 232 116" class="ln thin"/>
-            <circle cx="190" cy="34" r="16" class="fill-sun"/>
-            <path d="M22 70h28l9-22 14 40 11-30 6 12h30" class="ln bold"/>
-            <g class="ln"><path d="M150 96 l10-28 14 6 10 22"/><circle cx="162" cy="58" r="6"/><path d="M160 68 l-14 10 M170 70 l14 4"/></g>
-            <circle cx="214" cy="104" r="11" class="dot-dark"/><path d="M210 104h8M214 100v8" class="ln-w"/>
-          </svg>
-        </div>
-        <div class="c-mini"><span><svg class="icon-sm"><use href="#i-sleep"/></svg></span><b>Сон</b><em>7 ч 24 в среднем</em></div>
-        <div class="c-mini"><span><svg class="icon-sm"><use href="#i-brain"/></svg></span><b>Чек-ин</b><em>21 из 24 утром</em></div>
-        <div class="c-big"><span class="tag-mono dark">Сегодня</span><b>67%</b><em>состава готовы к полной нагрузке</em></div>
-      </div>
+      <div class="bs-ecg" aria-hidden="true"><svg viewBox="0 0 600 80" preserveAspectRatio="none"><path class="ecg-path" d="M0 40 H60 L72 40 L80 18 L90 62 L100 40 H160 L172 40 L180 18 L190 62 L200 40 H260 L272 40 L280 18 L290 62 L300 40 H360 L372 40 L380 18 L390 62 L400 40 H460 L472 40 L480 18 L490 62 L500 40 H600"/></svg><span>Браслет AI Sports · данные идут в кабинет каждую ночь</span></div>
     </div>
   </div>
 </section>
@@ -185,6 +167,35 @@
         <h3>Выгорание</h3>
         <p>спортсменов испытывают симптомы эмоционального выгорания, а программы восстановления одинаковы для всех.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- BAND -->
+<section class="section" id="band" aria-labelledby="band-title">
+  <div class="wrap band-sec">
+    <div class="band-copy">
+      <span class="tag-mono">Браслет AI Sports</span>
+      <h2 class="title-l" id="band-title">Все измерения снимает один браслет. Без экрана, без зарядки неделями.</h2>
+      <p class="lead">Спортсмен надевает браслет и забывает о нём: ночью он измеряет пульс, вариабельность ритма, кислород в крови и температуру кожи, а утром данные уже в кабинете врача. Экрана нет специально — ничего не отвлекает на тренировке и ничего не нужно настраивать.</p>
+      <ul class="band-specs">
+        <li><b>~8 дней</b><span>непрерывного мониторинга, до 50 дней в обычном режиме</span></li>
+        <li><b>5 ATM</b><span>защита от воды — можно плавать</span></li>
+        <li><b>25 г</b><span>вес с ремешком, корпус из сплава и поликарбоната</span></li>
+        <li><b>BLE</b><span>передача в телефон спортсмена, затем зашифрованно в кабинет</span></li>
+      </ul>
+      <p class="band-note">Платформа работает и с Garmin, Polar, Oura, Whoop и Apple Watch, если команда их уже использует. Браслет — вариант для команд, где устройств нет или они у всех разные.</p>
+    </div>
+    <div class="band-sheet">
+      <div class="band-sheet-img"><img src="band-v500-s.webp" width="520" height="520" alt="Браслет AI Sports: чёрный тканевый ремешок, металлический датчик без экрана" loading="lazy" decoding="async"></div>
+      <dl class="band-sheet-list">
+        <div><dt>Пульс</dt><dd>оптический датчик, оптимизирован под разные оттенки кожи</dd></div>
+        <div><dt>HRV</dt><dd>вариабельность ритма ночью — основа оценки восстановления</dd></div>
+        <div><dt>SpO₂</dt><dd>насыщение крови кислородом</dd></div>
+        <div><dt>Температура</dt><dd>контактный датчик, отклонения от личной нормы</dd></div>
+        <div><dt>Движение</dt><dd>3-осевой акселерометр: сон, активность, пробуждения</dd></div>
+        <div><dt>Сигналы</dt><dd>вибрация — напоминание об утреннем чек-ине</dd></div>
+      </dl>
     </div>
   </div>
 </section>
