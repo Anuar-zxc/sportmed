@@ -367,7 +367,9 @@ def reports_pdf_and_csv(b):
         with pg.p.expect_download() as dl:
             pg.p.click(f'[data-download="{k}"]')
         assert dl.value.suggested_filename.endswith(".csv")
-    # общее окно «Создать отчёт»: по умолчанию PDF
+    # общее окно «Создать отчёт» (на страницах с данными; на самой странице отчётов кнопки нет): по умолчанию PDF
+    assert pg.p.locator('[data-action="report"]').count() == 0
+    pg.go("/app#/overview", 500)
     pg.p.click('[data-action="report"]')
     with pg.p.expect_download() as dl:
         pg.p.click("#rep-go")
@@ -401,10 +403,24 @@ def welcome_sign_in_and_out(b):
 
 
 @test
+def roles_menu_and_report_button(b):
+    """Меню и обзор зависят от роли: психолог не видит риск травмы и аналитику, администратор попадает в свой раздел,
+    кнопка «Создать отчёт» только там, где есть данные; «Как работает ИИ» — простыми словами, техника под раскрывашкой."""
+    pg = Page(b).go("/app#/overview", 600)
+    visible = lambda: pg.p.evaluate("() => [...document.querySelectorAll('.nav-item[data-route]')].filter(a => !a.hidden).map(a => a.dataset.route)")
+
+    def as_role(role, hash_):  # смена роли в хранилище + полная загрузка с нужным адресом (смена одного «#» страницу не перезагружает)
+        pg.p.evaluate("(r) => { const s = JSON.parse(localStorage.getItem('asp_app_v1')); s.role = r; localStorage.setItem('asp_app_v1', JSON.stringify(s)); }", role)
+        pg.p.goto("about:blank")
+        pg.p.goto(BASE + "/app#/" + hash_); pg.p.wait_for_load_state("domcontentloaded")
+        pg.p.wait_for_function("() => document.querySelector('.nav-item[aria-current=\"page\"]')", timeout=10000); pg.p.wait_for_timeout(300)
+
+
+@test
 def landing_band_scene(b):
     pg = Page(b).go("/", 800)
     assert pg.p.locator(".bs-band img").count() == 1 and pg.p.evaluate("document.querySelector('.bs-band img').naturalWidth") > 0
-    assert pg.p.locator(".bs-chip").count() == 5 and "Все измерения снимает один браслет" in pg.text("#band")
+    assert pg.p.locator(".bs-chip").count() == 5 and "Один браслет снимает все измерения" in pg.text("#band")
     pg.check_clean()
     pg.close()
 

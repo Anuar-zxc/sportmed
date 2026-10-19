@@ -93,7 +93,32 @@
     if (what === 'psych') return r === 'psych';
     if (what === 'medical-decision') return r === 'doctor';
     if (what === 'admin') return r === 'admin';
+    if (what === 'risk') return r === 'doctor' || r === 'coach';      /* риск травмы, нагрузка, ACWR — зона врача и тренера */
+    if (what === 'medical-recs') return r === 'doctor';
     return true;
+  }
+  /* Разделы кабинета по ролям: недоступные не показываются в меню, прямой переход ведёт на первый доступный */
+  var ROLE_PAGES = {
+    doctor: ['overview', 'athletes', 'twin', 'medical', 'analytics', 'recommendations', 'reports', 'about', 'models', 'settings', 'help'],
+    coach: ['overview', 'athletes', 'twin', 'analytics', 'recommendations', 'reports', 'about', 'models', 'settings', 'help'],
+    psych: ['overview', 'athletes', 'twin', 'recommendations', 'reports', 'about', 'models', 'settings', 'help'],
+    admin: ['admin', 'about', 'settings', 'help']
+  };
+  function pageAllowed(p) { return (ROLE_PAGES[state.role] || ROLE_PAGES.doctor).indexOf(p) > -1; }
+  function homePage() { return (ROLE_PAGES[state.role] || ROLE_PAGES.doctor)[0]; }
+  /* Сигналы и рекомендации, относящиеся к роли: психолог — самочувствие и сон, тренер — без медицины, врач — всё */
+  var FLAG_PSYCH = { sleep: 1, self: 1, sore: 1 };
+  var FLAG_LAB = { crp: 1, ck: 1, vitd: 1 };
+  function flagsForRole(flags) {
+    if (state.role === 'psych') return (flags || []).filter(function (f) { return FLAG_PSYCH[f.k]; });
+    if (state.role === 'coach') return (flags || []).filter(function (f) { return !FLAG_LAB[f.k]; });
+    return flags || [];
+  }
+  function recForRole(r) {
+    if (state.role === 'doctor') return true;
+    if (state.role === 'coach') return r.owner !== 'doctor';
+    if (state.role === 'psych') return r.cat === 'Самочувствие' || r.cat === 'Восстановление';
+    return false;
   }
 
   /* ======================= Helpers ======================= */
@@ -149,7 +174,7 @@
       ready: list.filter(function (x) { return x.s.status === 'ready'; }),
       recovering: list.filter(function (x) { return x.s.status === 'recovery'; }),
       nodata: list.filter(function (x) { return x.s.status === 'nodata' || x.s.status === 'nocheckin'; }),
-      signals: list.filter(function (x) { return x.s.signal; }).sort(function (p, q) { return (q.s.risk || 0) - (p.s.risk || 0); }),
+      signals: list.filter(function (x) { return x.s.signal && flagsForRole(x.s.flags).length; }).sort(function (p, q) { return can('risk') ? (q.s.risk || 0) - (p.s.risk || 0) : flagsForRole(q.s.flags).length - flagsForRole(p.s.flags).length; }),
       series: series, labels: labels
     };
   }
@@ -187,7 +212,7 @@
     var loadAvg = D.mean(t.list.filter(function (x) { return x.s.acwr; }).map(function (x) { return x.s.acwr; }));
     recs.push({ id: 'team-food', a: null, cat: 'Питание', ic: 'food', tone: 'm', owner: 'any', prio: 'Плановый', title: 'Обновить план питания', text: 'адаптировать питание к предстоящему тренировочному микроциклу' + (loadAvg > 1.02 ? ' (средняя нагрузка команды +' + Math.round((loadAvg - 1) * 100) + '%).' : '.'), why: ['Микроцикл', 'Средний ACWR ' + num(loadAvg, 2)] });
     recs.forEach(function (r) { var d = state.decisions[r.id]; r.status = d ? d.status : 'pending'; r.decision = d || null; });
-    return recs;
+    return recs.filter(recForRole);
   }
   function pendingCount() { return buildRecs().filter(function (r) { return r.status === 'pending'; }).length; }
 
@@ -448,7 +473,7 @@
     twin: ['Цифровой двойник', 'Все данные одного спортсмена: самочувствие, нагрузка, сон и анализы.'],
     medical: ['Медицинские данные', 'Анализы и показатели носимых устройств.'],
     analytics: ['AI-аналитика', 'Ранние сигналы, факторы риска и планировщик нагрузки.'],
-    models: ['Модели ИИ', 'Как обучены модели, насколько они точны и где их пределы. Проверка на ваших данных.'],
+    models: ['Как работает ИИ', 'Что умеют прогнозы, насколько им доверять и где их пределы — простыми словами.'],
     recommendations: ['Рекомендации', 'Персональные действия на сегодня. Решение принимает специалист.'],
     reports: ['Отчёты', 'Выгрузка показателей команды в CSV для Excel и в PDF.'],
     settings: ['Настройки', 'Рабочее пространство, роли доступа и источники данных.'],
@@ -485,17 +510,23 @@
     rc.textContent = pc; rc.hidden = pc === 0;
     document.getElementById('bell-dot').hidden = !buildNotes().some(function (n) { return n.unread; });
     document.querySelectorAll('.nav-item[data-route]').forEach(function (a) {
-      if (a.getAttribute('data-route') === current.page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      var route = a.getAttribute('data-route');
+      a.hidden = !pageAllowed(route);
+      if (route === current.page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
+    document.querySelectorAll('.nav-group').forEach(function (g) { g.hidden = !g.querySelector('.nav-item:not([hidden])'); });
     document.getElementById('crumb').textContent = PAGES[current.page][0];
     document.title = PAGES[current.page][0] + (isPilot() ? ' — ' + (pilot.team.name || 'Моя команда') + ' · AI Sports' : ' — демо-кабинет AI Sports');
   }
   function go(page, arg) { location.hash = '#/' + page + (arg ? '/' + arg : ''); }
 
+  var REPORT_PAGES = { overview: 1, athletes: 1, twin: 1, medical: 1, analytics: 1, recommendations: 1 };
   function pageHead(page, extra) {
     var p = PAGES[page];
+    var report = REPORT_PAGES[page] && state.role !== 'admin' ? '<button class="btn btn-primary" type="button" data-action="report">' + icon('download') + '<span class="lbl">Создать отчёт</span></button>' : '';
+    var actions = (extra || '') + report;
     return '<div class="page-head"><div><h1>' + p[0] + '</h1><p>' + p[1] + '</p></div>' +
-      '<div class="page-actions">' + (extra || '') + '<button class="btn btn-primary" type="button" data-action="report">' + icon('download') + '<span class="lbl">Создать отчёт</span></button></div></div>';
+      (actions ? '<div class="page-actions">' + actions + '</div>' : '') + '</div>';
   }
   function footerStrip() {
     return '<div class="footer-strip"><span>' + icon('shield', 'icon-sm') + (isPilot() ? 'Режим пилота · данные команды только на этом устройстве' : 'Защищённая среда · демонстрационные данные') + '</span><span>AI помогает. Решение принимает специалист.</span>' + (isPilot() ? '<button class="linklike" type="button" data-action="pilot-backup" style="color:var(--text-2)">Резервная копия ' + '</button>' : '<a href="#/about">Стратегия платформы ' + icon('arrow', 'icon-sm') + '</a>') + '</div>';
@@ -504,7 +535,8 @@
   function render() {
     var h = location.hash.replace(/^#\/?/, '');
     var parts = h.split('/');
-    var page = PAGES[parts[0]] ? parts[0] : 'overview';
+    var page = PAGES[parts[0]] ? parts[0] : homePage();
+    if (!pageAllowed(page) && page !== 'admin') { location.replace('#/' + homePage()); page = homePage(); }
     var arg = parts[1] ? decodeURIComponent(parts[1]) : null;
     current = { page: page, arg: arg };
     if (page === 'twin' && arg && byId(arg)) state.twinAthlete = arg;
@@ -550,7 +582,7 @@
     var a = x.a, s = x.s;
     return '<button class="list-row" type="button" data-open="' + a.id + '">' + avatar(a) +
       '<span class="grow"><span class="person" style="display:block"><b>' + esc(a.short) + '</b><span>' + esc(s.signal || a.posName) + '</span></span>' +
-      (opts && opts.flags && s.flags.length ? '<span class="flag-line">' + s.flags.slice(0, 3).map(function (f) { return '<span>' + esc(f.t) + '</span>'; }).join('<span aria-hidden="true">·</span>') + '</span>' : '') +
+      (opts && opts.flags && flagsForRole(s.flags).length ? '<span class="flag-line">' + flagsForRole(s.flags).slice(0, 3).map(function (f) { return '<span>' + esc(f.t) + '</span>'; }).join('<span aria-hidden="true">·</span>') + '</span>' : '') +
       '</span>' + (opts && opts.risk ? '<span class="' + riskClass(s.rr) + ' num" style="font-weight:700" title="' + esc(riskTip(s)) + '">' + fmtRisk(s) + '</span>' : '') + icon('right', 'icon-sm chev') + '</button>';
   }
 
@@ -559,7 +591,7 @@
     var colDefs = [
       { k: 'readiness', t: 'Готовность' }, { k: 'recovery', t: 'Восстановление' }, { k: 'risk', t: 'Риск травмы · 7 дн.' },
       { k: 'sleep', t: 'Сон' }, { k: 'hrv', t: 'HRV' }, { k: 'status', t: 'Статус' }
-    ].filter(function (c) { return cols[c.k]; });
+    ].filter(function (c) { return cols[c.k] && (c.k !== 'risk' || can('risk')); });
     function th(k, t) {
       if (!opts.sortable) return '<th scope="col">' + t + '</th>';
       var on = state.sort.key === k;
@@ -736,7 +768,21 @@
     function ci(a) { return num(a[0], 2) + '–' + num(a[1], 2); }
     var injLabel = function (k) { return (ML.INJ_LABELS[k] || [k])[0]; };
     var rLabel = function (k) { return R_LABELS[k] || k; };
+    function trust(auc) { return auc >= 0.8 ? ['высокая', 'val-good'] : auc >= 0.65 ? ['умеренная', ''] : ['средняя', 'val-warn']; }
+    var tI = trust(best.roc_auc), tR = trust(cb.roc_auc);
     return pageHead('models') +
+      '<div class="grid g-3 plain-ai">' +
+        '<article class="panel panel-body ai-card"><span class="kpi-ic o">' + icon('shield') + '</span><h2>Риск травмы на 7 дней</h2>' +
+          '<p><b>Точность <span class="' + tI[1] + '">' + tI[0] + '</span>.</b> Спортсмены из верхних 10% прогноза травмируются в <b>' + num(I.lift_top_decile, 1).replace('.', ',') + ' раза</b> чаще остальных. Это заметно лучше, чем смотреть только на нагрузку.</p>' +
+          '<p class="how">Как использовать: высокий риск — повод открыть карточку, разобрать факторы и поговорить со спортсменом. Не диагноз и не запрет на тренировку.</p></article>' +
+        '<article class="panel panel-body ai-card"><span class="kpi-ic v">' + icon('activity') + '</span><h2>Готовность на завтра</h2>' +
+          '<p><b>Точность <span class="' + tR[1] + '">' + tR[0] + '</span>.</b> Модель заранее угадывает «плохой день» лучше простого правила и ошибается в среднем на ' + num(rb.mae, 1) + ' балла из 10.</p>' +
+          '<p class="how">Как использовать: планировать нагрузку на завтра и обсуждать с тренером, кому дать день легче.</p></article>' +
+        '<article class="panel panel-body ai-card"><span class="kpi-ic m">' + icon('info') + '</span><h2>Чего ИИ не умеет</h2>' +
+          '<p>Модели обучены на открытых данных ' + I.dataset.athletes + ' спортсменов. На другом виде спорта без дообучения точность не подтверждена, поэтому первые 14–28 дней прогнозы выводятся с пометкой «формируется норма».</p>' +
+          '<p class="how">Платформа не ставит диагнозы и не назначает лечение. Решение всегда за врачом и тренером.</p></article>' +
+      '</div>' +
+      '<details class="tech-details"><summary>' + icon('chart', 'icon-sm') + '<span>Подробнее для специалистов: метрики, калибровка, важность признаков, источники, проверка на своих данных</span>' + icon('down', 'icon-sm chev') + '</summary><div class="tech-body">' +
       '<div class="grid g-4">' +
         '<article class="panel kpi"><div class="kpi-top"><span>Риск травмы · ROC-AUC</span><span class="kpi-ic o">' + icon('shield', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">' + num(best.roc_auc, 2) + '</span></div><div class="kpi-foot">95% ДИ ' + ci(I.ci95_bootstrap_athletes.roc_auc) + ' · только нагрузка: ' + num(mi.logreg_load_ratio.roc_auc, 2) + '</div></article>' +
         '<article class="panel kpi"><div class="kpi-top"><span>Верхние 10% прогнозов</span><span class="kpi-ic v">' + icon('chart', 'icon-sm') + '</span></div><div class="kpi-mid"><span class="kpi-val">×' + num(I.lift_top_decile, 1) + '</span></div><div class="kpi-foot">травм чаще, чем в среднем</div></article>' +
@@ -805,7 +851,7 @@
           '<div class="source-cite"><b>SoccerMon · GPS и дни травм двух команд (внешняя проверка переноса)</b><span>Обработка: <a href="https://github.com/Julie-Landrevie/womens-football-load-monitoring" target="_blank" rel="noopener">github.com/Julie-Landrevie/womens-football-load-monitoring</a> · CC BY 4.0</span><span class="muted">50 игроков, 2020–2021; дни без записи считаются пропуском, цель — начало эпизода травмы.</span></div>' +
           '<div class="source-cite"><b>Код обучения и проверки</b><span><a href="https://github.com/Anuar-zxc/sportmed/tree/main/ml" target="_blank" rel="noopener">github.com/Anuar-zxc/sportmed/ml</a> · scikit-learn</span><span class="muted">Признаки в браузере совпадают с обучением до 1e-15 (автоматическая проверка verify_js.py).</span></div>' +
         '</div></section>' +
-      '</div>' + footerStrip();
+      '</div></div></details>' + footerStrip();
   };
   MOUNT.models = function () {
     var f = document.getElementById('csv-file');
@@ -968,7 +1014,7 @@
       '<dl class="today-stats">' +
         '<div><dt>Восстановление</dt><dd>' + (t.recovery == null ? '—' : t.recovery) + '<small>/100</small><span class="ts-note">' + deltaTxt(dV, 'за неделю') + '</span>' + sparkline(t.series('recovery', 14), 'var(--s2)') + '</dd></div>' +
         '<div><dt>Ранние сигналы</dt><dd>' + t.signals.length + '<span class="ts-note">' + plural(t.signals.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' с отклонениями</span>' + sparkline(t.series('risk', 14), 'var(--s1)') + '</dd></div>' +
-        '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small><span class="ts-note">на 7 дней, по модели</span></dd></div>' +
+        (can('risk') ? '<div><dt>Средний риск травмы</dt><dd>' + (avgRisk == null ? '—' : num(avgRisk, 1)) + '<small>%</small><span class="ts-note">на 7 дней, по модели</span></dd></div>' : '<div><dt>Самочувствие · внимание</dt><dd>' + t.attention.length + '<span class="ts-note">' + plural(t.attention.length, 'спортсмен', 'спортсмена', 'спортсменов') + ' со статусом «требует внимания»</span></dd></div>') +
       '</dl>' +
     '</section>';
   }
@@ -1128,7 +1174,7 @@
     else insight = lastR == null ? 'Пока мало данных для динамики — заполните чек-ины или импортируйте историю.' : 'Готовность команды стабильна за период: <b>' + lastR + '/100</b>.';
 
     var recs = buildRecs().filter(function (r) { return r.status === 'pending'; }).slice(0, 3);
-    var top5 = sortRows(t.list, { key: 'risk', dir: 'desc' }).slice(0, 5);
+    var top5 = sortRows(t.list, can('risk') ? { key: 'risk', dir: 'desc' } : { key: 'readiness', dir: 'asc' }).slice(0, 5);
     var recCount = isPilot() ? pilotRecordCount() : 0;
     var pilotStart = '';
     if (isPilot() && recCount === 0) {
@@ -1200,6 +1246,20 @@
     return '<label class="field" style="min-width:min(280px,100%)"><span class="label sr-only">' + label + '</span><select class="select" id="' + idAttr + '" aria-label="' + label + '">' +
       model.athletes.map(function (a) { return '<option value="' + a.id + '"' + (a.id === selected ? ' selected' : '') + '>' + esc(a.short) + ' · № ' + esc(a.num) + '</option>'; }).join('') + '</select></label>';
   }
+  /* Самочувствие спортсмена по последним чек-инам — для психолога вместо факторов риска травмы */
+  function wellbeingHtml(a) {
+    var list = isPilot()
+      ? a.days.slice().reverse().filter(function (d) { return d.well; }).slice(0, 7).map(function (d) { var w = d.well; return { mood: w.mood, stress: w.stress != null ? 6 - w.stress : null, motivation: null, sleepq: w.sleep_quality, fatigue: w.fatigue }; })
+      : (state.checkins[a.id] || []).slice(0, 7);
+    if (!list.length) return '<div class="empty">' + icon('info') + 'Чек-инов пока нет — попросите спортсмена заполнить утренний опрос</div>';
+    function avgOf(k) { var v = list.map(function (c) { return c[k]; }).filter(function (x) { return x != null; }); return v.length ? D.mean(v) : null; }
+    var items = [['Настроение', avgOf('mood'), 'up'], ['Стресс', avgOf('stress'), 'down'], ['Мотивация', avgOf('motivation'), 'up'], ['Качество сна', avgOf('sleepq'), 'up'], ['Усталость', avgOf('fatigue'), 'down']]
+      .filter(function (x) { return x[1] != null; });
+    return '<div class="metric-tiles">' + items.map(function (x) {
+      var v = x[1], good = x[2] === 'up' ? v >= 3.5 : v <= 2.5, warn = x[2] === 'up' ? v <= 2.5 : v >= 3.5;
+      return '<div class="tile"><span>' + esc(x[0]) + '</span><b class="' + (warn ? 'val-warn' : good ? 'val-good' : '') + '">' + num(v, 1) + '<small>/5</small></b></div>';
+    }).join('') + '</div><p class="muted" style="margin:10px 0 0;font-size:12.5px">Среднее за последние ' + list.length + ' ' + plural(list.length, 'чек-ин', 'чек-ина', 'чек-инов') + '. Детальные ответы видит только психолог.</p>';
+  }
   RENDER.twin = function () {
     var a = byId(state.twinAthlete) || model.athletes[0];
     var s = snapOf(a);
@@ -1263,7 +1323,7 @@
       '</div>' +
       '<div class="grid g-2" style="align-items:start">' +
         '<section class="panel"><div class="panel-head"><div><h2>Прогноз на завтра</h2><p>Модель готовности · обучена на открытых данных SoccerMon</p></div>' + modelBadge() + '</div><div class="panel-body" style="display:flex;flex-direction:column;gap:14px">' + forecastHtml(a, s) + '</div></section>' +
-        '<section class="panel"><div class="panel-head"><div><h2>Почему такой риск травмы</h2><p>Вклад факторов за последние 7 дней</p></div><a class="btn btn-ghost btn-sm" href="#/analytics">Планировщик ' + icon('arrow', 'icon-sm') + '</a></div><div class="panel-body">' + injuryFactorsHtml(a, 6) + '</div></section>' +
+        (can('risk') ? '<section class="panel"><div class="panel-head"><div><h2>Почему такой риск травмы</h2><p>Вклад факторов за последние 7 дней</p></div><a class="btn btn-ghost btn-sm" href="#/analytics">Планировщик ' + icon('arrow', 'icon-sm') + '</a></div><div class="panel-body">' + injuryFactorsHtml(a, 6) + '</div></section>' : '<section class="panel"><div class="panel-head"><div><h2>Самочувствие по чек-инам</h2><p>Зона психолога: настроение, стресс, мотивация, сон</p></div></div><div class="panel-body">' + wellbeingHtml(a) + '</div></section>') +
       '</div>' +
       '<div class="grid g-2">' +
         (isPilot()
@@ -2985,7 +3045,7 @@
 
   /* ======================= Command palette ======================= */
   function cmdk() {
-    var pages = Object.keys(PAGES).map(function (k) { return { type: 'page', label: PAGES[k][0], sub: 'Раздел', run: function () { go(k); } }; });
+    var pages = Object.keys(PAGES).filter(pageAllowed).map(function (k) { return { type: 'page', label: PAGES[k][0], sub: 'Раздел', run: function () { go(k); } }; });
     var actions = [
       { type: 'act', label: 'Создать отчёт', sub: 'Действие', run: reportModal },
       { type: 'act', label: 'Добавить спортсмена', sub: 'Действие', run: addAthleteModal },

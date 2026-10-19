@@ -716,3 +716,62 @@ body.landing {
 @media (pointer: coarse) {
   .landing .top-nav a, .foot-links a, .foot-links .linklike, .landing .legal-links a { min-height: 44px; display: inline-flex; align-items: center; }
 }
+
+/* =====================================================================
+   Ревью лендинга (окт 2026): меньше текста, цветной первый экран, чередование фонов
+   ===================================================================== */
+/* Первый экран — персиковый, как акцент платформы */
+.landing .hero { background: radial-gradient(120% 90% at 85% 10%, #ffc48a 0%, #ffd8b2 38%, #ffe9d3 70%, #fff3e6 100%); border-bottom: 1px solid var(--hair); }
+.landing .hero .tag-mono { background: rgba(255, 255, 255, 0.7); color: var(--tag-ink); }
+.landing .hero .lead { color: #4a3a2c; }
+.landing .hero .btn-ghost { background: rgba(255, 255, 255, 0.8); border-color: rgba(27, 20, 14, 0.12); }
+.landing .hero .bs-glow { background: radial-gradient(circle, rgba(255, 255, 255, 0.85), rgba(255, 240, 225, 0.35) 55%, transparent 72%); }
+.landing .hero .bs-ecg span { color: #6b4a2e; }
+.landing .hero .bs-chip { background: rgba(255, 255, 255, 0.94); }
+.landing .integrations { border-top: 0; }
+
+/* Проблема: цифры крупнее и ярче, текст короче */
+.problem > b { font-size: clamp(48px, 5.6vw, 72px); font-weight: 650; letter-spacing: -0.05em; line-height: 1; color: var(--peach-ink); }
+.problem p { font-size: 14.5px; max-width: 28ch; }
+
+/* Браслет: фото + 4 характеристики */
+.band-photo { display: grid; place-items: center; background: var(--band); border: 1px solid var(--hair); border-radius: 24px; padding: 28px; min-height: 360px; }
+.band-photo img { width: min(100%, 380px); height: auto; filter: drop-shadow(0 28px 28px rgba(60, 35, 10, 0.28)); animation: hover 6s ease-in-out infinite; }
+.band-specs b { font-size: 32px; }
+@media (prefers-reduced-motion: reduce) { .band-photo img { animation: none; } }
+
+/* Что измеряет: шесть иконок */
+.measures { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.measures li { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 22px 12px 18px; background: #fff; border: 1px solid var(--hair); border-radius: 16px; }
+.measures i { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--tag); color: var(--peach-ink); margin-bottom: 4px; }
+.measures b { font-size: 16px; font-weight: 650; letter-spacing: -0.015em; }
+.measures span { font-size: 12.5px; color: var(--mute); }
+.measures-note { margin: 24px auto 0; max-width: 60ch; text-align: center; font-size: 14px; color: var(--mute); }
+.measures-note a { color: var(--peach-ink); }
+@media (max-width: 960px) { .measures { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .measures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Что внутри кабинета: одна фраза на карточку */
+#features .features { margin-top: 0; }
+.feat p { font-size: 14px; }
+
+/* Как работает — тёплый тон, чтобы блок читался отдельно */
+.landing .section.tint { background: linear-gradient(180deg, #fff6ec, #fff); }
+
+/* Данные: пять строк тегов вместо 30 пунктов */
+.data-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-width: 860px; margin-inline: auto; }
+.data-tags li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px; background: #fff; border: 1px solid var(--hair); border-radius: 14px; }
+.dt-h { display: inline-flex; align-items: center; gap: 8px; min-width: 150px; font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
+.dt-h svg { color: var(--peach-ink); }
+.dt-t { font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--band); border: 1px solid var(--hair); color: #4a4038; }
+@media (max-width: 520px) { .dt-h { min-width: 100%; } }
+
+/* Пилот: три пункта вместо карточек и списка */
+.pilot-incl { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pilot-incl li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+.pilot-incl svg { color: var(--ok-ink); margin-top: 3px; flex: none; }
+.targets .foot a { color: var(--peach-ink); }
+
+/* Шаг 02: личная норма вместо живой ленты */
+.up-norm { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--band); border: 1px solid var(--hair); font-size: 12.5px; color: #6b6156; }
+.up-norm b { font-size: 13px; color: var(--ink); font-weight: 650; }

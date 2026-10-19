@@ -753,3 +753,21 @@ body.has-welcome { overflow: hidden; }
 
 /* Прокручиваемая таблица получает фокус с клавиатуры — показываем его */
 .table-wrap:focus-visible { outline: 2px solid var(--violet-strong); outline-offset: 2px; border-radius: 8px; }
+
+/* «Как работает ИИ»: простыми словами сверху, техническая часть — под раскрывашкой */
+.plain-ai .ai-card { display: flex; flex-direction: column; gap: 10px; padding: 22px; }
+.plain-ai .ai-card .kpi-ic { width: 42px; height: 42px; }
+.plain-ai .ai-card h2 { margin: 4px 0 0; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.plain-ai .ai-card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); }
+.plain-ai .ai-card .how { padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+.tech-details { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--panel); }
+.tech-details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 16px 20px; font-weight: 600; font-size: 14.5px; color: var(--text); border-radius: var(--r-l); }
+.tech-details > summary::-webkit-details-marker { display: none; }
+.tech-details > summary span { flex: 1; }
+.tech-details > summary .chev { transition: transform 0.2s var(--ease); color: var(--muted); }
+.tech-details[open] > summary { border-bottom: 1px solid var(--line); border-radius: var(--r-l) var(--r-l) 0 0; }
+.tech-details[open] > summary .chev { transform: rotate(180deg); }
+.tech-details > summary:hover { background: var(--hover); }
+.tech-details > summary:focus-visible { outline: 2px solid var(--violet-strong); outline-offset: 2px; }
+.tech-body { padding: 20px; display: flex; flex-direction: column; gap: 18px; background: var(--bg-tint, var(--bg)); border-radius: 0 0 var(--r-l) var(--r-l); }
+.tech-body > .grid { margin: 0; }
