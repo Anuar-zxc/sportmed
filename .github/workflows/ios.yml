@@ -14,7 +14,7 @@ concurrency:
 jobs:
   build-test:
     name: Сборка и тесты (симулятор iPhone)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 40
     defaults:
       run:
@@ -23,9 +23,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.app
-          xcodebuild -version
+        run: xcodebuild -version
 
       - name: XcodeGen
         run: |
@@ -37,7 +35,7 @@ jobs:
         id: sim
         run: |
           xcrun simctl list devices available
-          UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; c=[x for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone 15")]; print(c[-1]["udid"])')
+          UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; c=sorted([x for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone") and "Pro" not in x["name"] and "Plus" not in x["name"]], key=lambda x: x["name"]); print(c[-1]["udid"])')
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       - name: Сборка и юнит-тесты
