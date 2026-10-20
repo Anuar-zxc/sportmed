@@ -57,8 +57,7 @@ final class HealthProvider: ObservableObject {
         await withCheckedContinuation { cont in
             let q = HKSampleQuery(sampleType: HKCategoryType(.sleepAnalysis), predicate: pred, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 let asleep = (samples as? [HKCategorySample] ?? []).filter { s in
-                    if #available(iOS 16.0, *) { return HKCategoryValueSleepAnalysis.allAsleepValues.contains(HKCategoryValueSleepAnalysis(rawValue: s.value) ?? .inBed) }
-                    return s.value == HKCategoryValueSleepAnalysis.asleep.rawValue
+                    HKCategoryValueSleepAnalysis.allAsleepValues.contains(HKCategoryValueSleepAnalysis(rawValue: s.value) ?? .inBed)
                 }
                 let total = asleep.reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
                 cont.resume(returning: total > 0 ? total / 3600 : nil)

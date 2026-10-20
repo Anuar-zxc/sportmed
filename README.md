@@ -2,7 +2,7 @@
 
 Сайт, кабинет специалиста и мобильный чек-ин спортсмена — ИИ-платформа медицинской персонализации спортсменов (Digital Athlete Twin) с моделями, обученными на открытых научных данных.
 
-[![CI](https://github.com/Anuar-zxc/sportmed/actions/workflows/ci.yml/badge.svg)](https://github.com/Anuar-zxc/sportmed/actions/workflows/ci.yml)
+[![CI](https://github.com/Anuar-zxc/sportmed/actions/workflows/ci.yml/badge.svg)](https://github.com/Anuar-zxc/sportmed/actions/workflows/ci.yml) [![iOS](https://github.com/Anuar-zxc/sportmed/actions/workflows/ios.yml/badge.svg)](https://github.com/Anuar-zxc/sportmed/actions/workflows/ios.yml)
 
 **Сайт:** https://sportmed-eight.vercel.app · **Кабинет:** https://sportmed-eight.vercel.app/app
 
@@ -14,6 +14,7 @@
 | `/investors` | Для партнёров и инвесторов: рынок, целевые показатели пилота, экономика |
 | `/app` | Кабинет специалиста: демо-команда (24 вымышленных спортсмена) и рабочее пространство реальной команды |
 | `/checkin` | Утренний чек-ин спортсмена с телефона по персональной ссылке (PWA, работает офлайн) |
+| [`ios/`](ios/README.md) | Приложение для iPhone (SwiftUI): чек-ин спортсмена с шифрованием, браслет по Bluetooth, Apple Health; кабинет специалиста внутри приложения |
 | `/privacy`, `/cookies`, `/terms`, `/consent` | Политика конфиденциальности, политика cookie, пользовательское соглашение, согласие на обработку ПД |
 
 ### Функции кабинета
