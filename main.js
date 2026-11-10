@@ -157,6 +157,23 @@
     }, { passive: true });
   }
 
+
+  /* ---------- Песочница «Попробуйте ИИ»: модели подгружаются, только когда посетитель до неё долистал ---------- */
+  var sbx = document.querySelector('[data-sandbox]');
+  if (sbx) {
+    var sbxLoaded = false;
+    var loadSandbox = function () {
+      if (sbxLoaded) return; sbxLoaded = true;
+      ['/models.js', '/model.js', '/sandbox.js'].reduce(function (p, src) {
+        return p.then(function () { return new Promise(function (res, rej) { var sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); }); });
+      }, Promise.resolve()).catch(function () { sbx.classList.add('failed'); });
+    };
+    if ('IntersectionObserver' in window) {
+      var sio = new IntersectionObserver(function (en) { if (en.some(function (e) { return e.isIntersecting; })) { sio.disconnect(); loadSandbox(); } }, { rootMargin: '900px 0px' });
+      sio.observe(sbx);
+    } else loadSandbox();
+  }
+
   /* ---------- Tabs (roles on landing) ---------- */
   document.querySelectorAll('[role="tablist"][data-tabs]').forEach(function (list) {
     var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));

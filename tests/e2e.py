@@ -452,6 +452,45 @@ def landing_motion_and_banners(b):
 
 
 @test
+def landing_sandbox(b):
+    """«Попробуйте ИИ»: модели грузятся только у раздела, сценарии и ползунки меняют прогноз осмысленно."""
+    pg = Page(b).go("/", 600)
+    loaded = "() => performance.getEntriesByType('resource').some(e => e.name.endsWith('/models.js'))"
+    assert not pg.p.evaluate(loaded), "модели загружены сразу, а не по мере прокрутки"
+    pg.p.locator("#try").scroll_into_view_if_needed()
+    pg.p.wait_for_function("() => document.querySelector('[data-sandbox].ready')", timeout=15000)
+    num = lambda sel: float(pg.text(sel).replace("−", "-").replace(",", ".").split()[0])
+    base = num('[data-o="ready"]')
+    assert 6 < base < 8.5, base
+    pg.p.click('[data-preset="heavy"]'); pg.p.wait_for_timeout(250)
+    heavy = num('[data-o="ready"]')
+    assert heavy < base - 1, (base, heavy)
+    assert pg.p.get_attribute('[data-preset="heavy"]', "aria-pressed") == "true"
+    assert "Нагрузка за 7 дней" in pg.text('[data-o="factors"]'), pg.text('[data-o="factors"]')
+    pg.p.click('[data-preset="poorSleep"]'); pg.p.wait_for_timeout(250)
+    rows = pg.p.evaluate("[...document.querySelectorAll('[data-o=\"groups\"] li')].map(li => li.innerText)")
+    worst = min(rows, key=lambda r: float(r.split()[-1].replace("−", "-").replace(",", ".")))
+    assert worst.startswith("Сон"), rows
+    # клавиатура: стрелка на ползунке меняет значение и сбрасывает выбранный сценарий
+    pg.p.click('[data-preset="normal"]'); pg.p.wait_for_timeout(200)
+    pg.p.focus("#sx-sleepH")
+    for _ in range(4):
+        pg.p.keyboard.press("ArrowRight")
+    pg.p.wait_for_timeout(250)
+    assert num('[data-o="ready"]') > base, "больше сна — готовность должна вырасти"
+    assert pg.p.locator('.sbx-presets [aria-pressed="true"]').count() == 0
+    assert pg.p.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.check_clean()
+    pg.close()
+    m = Page(b, mobile=True).go("/", 400)
+    m.p.locator("#try").scroll_into_view_if_needed()
+    m.p.wait_for_function("() => document.querySelector('[data-sandbox].ready')", timeout=15000)
+    assert m.p.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "горизонтальная прокрутка на телефоне"
+    m.check_clean()
+    m.close()
+
+
+@test
 def landing_band_scene(b):
     pg = Page(b).go("/", 800)
     assert pg.p.locator(".bs-band img").count() == 1 and pg.p.evaluate("document.querySelector('.bs-band img').naturalWidth") > 0

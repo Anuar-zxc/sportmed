@@ -66,6 +66,11 @@ def main():
                     pg = ctx.new_page()
                     pg.goto(base + path)
                     pg.wait_for_timeout(700)
+                    if path == "/" and pg.locator("[data-sandbox]").count():
+                        # песочница «Попробуйте ИИ» проверяется уже с посчитанным прогнозом (сценарий «Перегрузка»)
+                        pg.locator("#try").scroll_into_view_if_needed()
+                        pg.wait_for_function("() => document.querySelector('[data-sandbox].ready')", timeout=15000)
+                        pg.click('[data-preset="heavy"]'); pg.wait_for_timeout(300)
                     pg.add_script_tag(content=axe)
                     res = pg.evaluate("(tags) => axe.run(document, {runOnly: {type: 'tag', values: tags}})", TAGS)
                     for v in res["violations"]:

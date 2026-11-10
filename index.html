@@ -393,6 +393,76 @@
   </div>
 </section>
 
+<!-- TRY -->
+<section class="section sbx-sec" id="try" aria-labelledby="try-title">
+  <div class="wrap">
+    <div class="center-head">
+      <span class="tag-mono">Попробуйте сами</span>
+      <h2 class="title-l" id="try-title">Сдвиньте сон и нагрузку — посмотрите, что скажет модель.</h2>
+      <p class="lead">Те же модели, что в кабинете, работают прямо в браузере. Ничего не отправляется.</p>
+    </div>
+    <div class="sbx" data-sandbox>
+      <div class="sbx-controls">
+        <div class="sbx-presets" role="group" aria-label="Готовые сценарии">
+          <button type="button" data-preset="normal" aria-pressed="true">Обычно</button>
+          <button type="button" data-preset="heavy" aria-pressed="false">Перегрузка</button>
+          <button type="button" data-preset="poorSleep" aria-pressed="false">Недосып</button>
+          <button type="button" data-preset="fresh" aria-pressed="false">Свежий</button>
+        </div>
+        <fieldset>
+          <legend>Утренний чек-ин</legend>
+          <div class="sbx-f"><label for="sx-sleepH">Сон</label><output for="sx-sleepH"></output><input type="range" id="sx-sleepH" name="sleepH" min="4" max="10" step="0.5" value="7.5"></div>
+          <div class="sbx-f"><label for="sx-sleepQ">Качество сна</label><output for="sx-sleepQ"></output><input type="range" id="sx-sleepQ" name="sleepQ" min="1" max="5" step="1" value="4"></div>
+          <div class="sbx-f"><label for="sx-fatigue">Усталость</label><output for="sx-fatigue"></output><input type="range" id="sx-fatigue" name="fatigue" min="1" max="5" step="1" value="2"></div>
+          <div class="sbx-f"><label for="sx-soreness">Мышечная боль</label><output for="sx-soreness"></output><input type="range" id="sx-soreness" name="soreness" min="1" max="5" step="1" value="2"></div>
+          <div class="sbx-f"><label for="sx-stress">Стресс</label><output for="sx-stress"></output><input type="range" id="sx-stress" name="stress" min="1" max="5" step="1" value="2"></div>
+          <div class="sbx-f"><label for="sx-mood">Настроение</label><output for="sx-mood"></output><input type="range" id="sx-mood" name="mood" min="1" max="5" step="1" value="4"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Последняя неделя</legend>
+          <div class="sbx-f"><label for="sx-load">Объём нагрузки</label><output for="sx-load"></output><input type="range" id="sx-load" name="load" min="0.5" max="2" step="0.05" value="1"></div>
+          <div class="sbx-f"><label for="sx-rest">Дней отдыха</label><output for="sx-rest"></output><input type="range" id="sx-rest" name="rest" min="0" max="3" step="1" value="1"></div>
+          <div class="sbx-f"><label for="sx-rpe">Тяжесть тренировок</label><output for="sx-rpe"></output><input type="range" id="sx-rpe" name="rpe" min="1" max="10" step="1" value="5"></div>
+        </fieldset>
+      </div>
+      <div class="sbx-out">
+        <div class="sbx-cards">
+          <div class="sbx-card sbx-ready">
+            <svg class="sbx-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="sbxg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd56e"/><stop offset="1" stop-color="#ff7a45"/></linearGradient></defs><circle class="sbx-ring-bg" cx="60" cy="60" r="50" pathLength="100"/><circle class="sbx-ring-fill" cx="60" cy="60" r="50" pathLength="100"/></svg>
+            <div class="sbx-ring-txt"><b data-o="ready">—</b><span>из 10</span></div>
+            <div class="sbx-ready-meta">
+              <h3>Готовность на завтра</h3>
+              <p>80% интервал: <span data-o="range">—</span></p>
+              <p class="sbx-delta" data-o="delta"></p>
+              <p class="sbx-self">Самооценка сегодня: <span data-o="self">—</span></p>
+            </div>
+          </div>
+          <div class="sbx-card sbx-risk">
+            <h3>Риск травмы за 7 дней</h3>
+            <div class="sbx-risk-row"><b data-o="risk">—</b><span class="sbx-rr" data-o="rr">—</span></div>
+            <div class="sbx-meter" aria-hidden="true"><i></i><b title="Средний уровень в данных"></b></div>
+            <p>к среднему уровню в обучающих данных</p>
+          </div>
+        </div>
+        <div class="sbx-why">
+          <div>
+            <h3>Что двигает готовность</h3>
+            <ul class="sbx-groups" data-o="groups"></ul>
+            <p class="sbx-cap">баллы относительно обычного дня этого спортсмена</p>
+          </div>
+          <div>
+            <h3>Что повышает риск</h3>
+            <ul class="sbx-factors" data-o="factors"></ul>
+          </div>
+        </div>
+        <p class="sr-only" aria-live="polite" data-o="live"></p>
+        <p class="sbx-note">Синтетический спортсмен: девять недель обычной истории и ваша последняя неделя. Модели обучены на открытых научных данных (бегуны и футболисты): риск — ROC-AUC 0,62, готовность — средняя ошибка 0,6 балла. Это демонстрация, а не медицинская оценка. <a href="/app#/models">Как работает ИИ</a></p>
+        <noscript><p class="sbx-note">Для песочницы нужен JavaScript.</p></noscript>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- DATA -->
 <section class="band" id="data" aria-labelledby="data-title">
   <div class="wrap">
