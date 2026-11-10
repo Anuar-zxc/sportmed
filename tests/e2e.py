@@ -165,7 +165,7 @@ def science_and_journal_pages(b):
         for href in set(info["links"]) - {""}:
             if href.startswith(("/app", "/gf/")):
                 continue
-            st = pg.p.request.get(BASE + href).status
+            st = pg.p.evaluate("(u) => fetch(u, {method: 'HEAD'}).then(r => r.status)", href)  # через браузер: тот же прокси, что у страницы
             assert st == 200, (path, href, st)
     assert pg.p.locator("ol.refs > li").count() >= 5
     pg.go("/science", 200)
