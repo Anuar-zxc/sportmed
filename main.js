@@ -39,7 +39,7 @@
     burger.addEventListener('click', function () { setMenu(!document.body.classList.contains('menu-open')); });
     menu.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('menu-open')) { setMenu(false); burger.focus(); } });
-    window.addEventListener('resize', function () { if (window.innerWidth > 1000) setMenu(false); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 1180) setMenu(false); });
   }
 
   /* ---------- Появление при прокрутке, счётчики, наклон, параллакс ----------

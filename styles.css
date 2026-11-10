@@ -335,7 +335,7 @@ h1, h2, h3, .title-xl, .title-l, .title-m, .brand-text b { font-family: var(--fo
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .burger { display: none !important; }
 .mobile-menu { display: none; }
-@media (max-width: 1000px) {
+@media (max-width: 1180px) {
   .top-nav, .header-actions .hide-m { display: none; }
   .burger { display: inline-grid !important; }
   .mobile-menu { position: fixed; inset: 68px 0 0; z-index: 59; display: flex; flex-direction: column; gap: 4px; padding: 16px var(--gutter) 32px; background: var(--bg); overflow-y: auto; opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity 0.2s, transform 0.2s, visibility 0.2s; }
