@@ -1,13 +1,13 @@
 /* AI Sports — service worker: работа без сети и установка на телефон/компьютер.
    Всегда сначала сеть (чтобы после релиза сразу была новая версия), кэш — только когда сети нет.
    Шрифты /gf/ неизменяемые — из кэша. Данные пользователя здесь не хранятся: они в localStorage. */
-var CACHE = 'asp-shell-v14';
+var CACHE = 'asp-shell-v15';
 var SHELL = [
   '/', '/app', '/checkin', '/privacy', '/terms', '/cookies', '/consent', '/investors',
   '/styles.css', '/app.css', '/landing.css', '/vendor/devices-iphone.css', '/checkin.css', '/fonts.css',
   '/theme-init.js', '/main.js', '/app.js', '/data.js', '/model.js', '/models.js',
   '/asp-crypto.js', '/checkin.js', '/vendor/qrcode.js', '/sw-register.js',
-  '/band-v500.webp', '/band-v500-s.webp', '/fonts/inter-latin.woff2', '/fonts/inter-cyrillic.woff2', '/favicon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'
+  '/band-v5.webp', '/band-v5-s.webp', '/fonts/inter-latin.woff2', '/fonts/inter-cyrillic.woff2', '/favicon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', function (e) {

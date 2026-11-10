@@ -1112,7 +1112,7 @@
         '<div class="wc-brand"><svg viewBox="0 0 34 34"><rect width="34" height="34" rx="10" fill="url(#g-brand)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#2a1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>AI Sports</div>' +
         '<div class="wc-stage">' +
           '<svg class="wc-orbit" viewBox="0 0 520 520"><circle cx="260" cy="260" r="236" class="o1"/><circle cx="260" cy="260" r="176" class="o2"/></svg>' +
-          '<div class="wc-band"><img src="band-v500-s.webp" width="520" height="520" alt=""><span class="wc-dot"></span></div>' +
+          '<div class="wc-band"><img src="band-v5-s.webp" width="520" height="520" alt=""><span class="wc-dot"></span></div>' +
           '<div class="wc-ring">' +
             [['-62deg','61','уд/мин','heart','hr'],['18deg','64','HRV, мс','activity',''],['104deg','98','SpO₂, %','sleep',''],['196deg','36,4','°C кожи','flask',''],['278deg','7:42','сон','sleep','']].map(function (c) {
               return '<div class="wc-chip" style="--a:' + c[0] + '"><i class="' + c[4] + '">' + icon(c[3], 'icon-sm') + '</i><b>' + c[1] + '</b><span>' + c[2] + '</span></div>';
