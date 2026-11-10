@@ -1205,3 +1205,7 @@ body.landing {
 .compare.cmp3 td:last-child { background: #fff8ef; }
 .compare.cmp3 td small { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.35; color: var(--mute); }
 .cmp-foot { margin: 14px 0 0; font-size: 12px; line-height: 1.55; color: var(--mute); max-width: 90ch; }
+.form-status .fs-title { margin: 0 0 4px; font-weight: 650; }
+.form-status p { margin: 0 0 10px; }
+.form-status .fs-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.form-status .fs-done { font-size: 13px; font-weight: 600; color: var(--mint); }

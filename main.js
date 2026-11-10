@@ -304,13 +304,34 @@
       ok = setErr(f.consent, 'e-consent', !f.consent.checked ? 'Для отправки заявки нужно согласие на обработку персональных данных' : '') && ok;
       if (!ok) { var first = form.querySelector('[aria-invalid="true"]'); if (first) first.focus(); return; }
       var lines = ['Заявка на пилот AI Sports Precision Medicine', '', 'Имя: ' + f.name.value.trim(), 'Организация: ' + f.org.value.trim(), 'E-mail: ' + f.email.value.trim(), 'Роль: ' + (f.role.value || '—'), '', 'Сообщение:', f.message.value.trim() || '—', '', 'Согласие на обработку персональных данных: дано (' + new Date().toLocaleString('ru-RU') + ')'];
-      window.location.href = 'mailto:' + CONFIG.email + '?subject=' + encodeURIComponent('Заявка на пилот — ' + f.org.value.trim()) + '&body=' + encodeURIComponent(lines.join('\n'));
+      var subject = 'Заявка на пилот — ' + f.org.value.trim(), body = lines.join('\n');
+      var mailto = 'mailto:' + CONFIG.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+      window.location.href = mailto;
+      // запасной путь, если почтового приложения нет: скопировать готовый текст и отправить любым способом
       status.className = 'form-status ok';
       status.textContent = '';
-      var s1 = document.createElement('span');
-      s1.textContent = 'Открываем почтовое приложение с готовым письмом. Если оно не открылось — напишите на ';
-      var a = document.createElement('a'); a.href = 'mailto:' + CONFIG.email; a.textContent = CONFIG.email;
-      status.appendChild(s1); status.appendChild(a); status.appendChild(document.createTextNode('.'));
+      var p1 = document.createElement('p'); p1.className = 'fs-title'; p1.textContent = 'Письмо с заявкой готово';
+      var p2 = document.createElement('p');
+      p2.appendChild(document.createTextNode('Если почтовое приложение не открылось, скопируйте текст и отправьте его на '));
+      var a = document.createElement('a'); a.href = 'mailto:' + CONFIG.email; a.textContent = CONFIG.email; p2.appendChild(a);
+      p2.appendChild(document.createTextNode(' из любой почты.'));
+      var row = document.createElement('div'); row.className = 'fs-actions';
+      var copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-ghost btn-sm'; copy.textContent = 'Скопировать текст заявки';
+      var again = document.createElement('a'); again.className = 'btn btn-ghost btn-sm'; again.href = mailto; again.textContent = 'Открыть почту ещё раз';
+      var done = document.createElement('span'); done.className = 'fs-done'; done.setAttribute('aria-live', 'polite');
+      copy.addEventListener('click', function () {
+        var text = 'Кому: ' + CONFIG.email + '\nТема: ' + subject + '\n\n' + body;
+        var ok = function () { done.textContent = 'Скопировано'; };
+        var legacy = function () {
+          var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); ok(); } catch (err) { done.textContent = 'Не удалось скопировать'; }
+          document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, legacy); else legacy();
+      });
+      row.appendChild(copy); row.appendChild(again); row.appendChild(done);
+      status.appendChild(p1); status.appendChild(p2); status.appendChild(row);
     });
     ['name', 'org', 'email'].forEach(function (n) { var el = form.elements[n]; if (el) el.addEventListener('input', function () { if (el.getAttribute('aria-invalid')) setErr(el, 'e-' + n, ''); }); });
     form.elements.consent.addEventListener('change', function () { if (this.checked) setErr(this, 'e-consent', ''); });

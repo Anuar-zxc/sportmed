@@ -555,6 +555,29 @@ def landing_cost_calculator(b):
 
 
 @test
+def landing_lead_form(b):
+    """Заявка: ошибки у пустых полей, затем готовое письмо и запасной путь — копирование текста."""
+    pg = Page(b).go("/", 300)
+    pg.ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=BASE)
+    pg.p.locator("#contact").scroll_into_view_if_needed()
+    pg.p.click("#lead-form button[type=submit]")
+    assert pg.p.get_attribute("#f-name", "aria-invalid") == "true"
+    assert pg.p.evaluate("document.activeElement.id") == "f-name"
+    assert "согласие" in pg.text("#e-consent")
+    pg.p.fill("#f-name", "Айгерим Тестова"); pg.p.fill("#f-org", "ФК Тест"); pg.p.fill("#f-email", "coach@example.org")
+    pg.p.check("#f-consent")
+    pg.p.click("#lead-form button[type=submit]"); pg.p.wait_for_timeout(300)
+    assert "Письмо с заявкой готово" in pg.text("#form-status")
+    assert pg.p.get_attribute("#form-status .fs-actions a", "href").startswith("mailto:")
+    pg.p.click("#form-status .fs-actions button"); pg.p.wait_for_timeout(300)
+    assert "Скопировано" in pg.text("#form-status .fs-done")
+    clip = pg.p.evaluate("navigator.clipboard.readText()")
+    assert "Тема: Заявка на пилот — ФК Тест" in clip and "coach@example.org" in clip and "Айгерим Тестова" in clip, clip
+    pg.check_clean()
+    pg.close()
+
+
+@test
 def landing_band_scene(b):
     pg = Page(b).go("/", 800)
     assert pg.p.locator(".bs-band img").count() == 1 and pg.p.evaluate("document.querySelector('.bs-band img').naturalWidth") > 0
