@@ -37,6 +37,9 @@
 <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-drop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5s-6 6.4-6 10.8a6 6 0 0 0 12 0C18 9.9 12 3.5 12 3.5Z"/><path d="M9.5 14.5a2.6 2.6 0 0 0 2.5 2.5"/></symbol>
+<symbol id="i-temp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V5a2 2 0 1 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 9v7"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3"/></symbol>
 <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
 <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
 <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
@@ -77,8 +80,8 @@
       <a href="#product">Продукт</a>
       <a href="#band">Браслет</a>
       <a href="#how">Как работает</a>
+      <a href="#app">Приложение</a>
       <a href="#pilot">Пилот</a>
-      <a href="#trust">Безопасность</a>
       <a href="#faq">Вопросы</a>
     </nav>
     <div class="header-actions">
@@ -90,12 +93,15 @@
   <nav class="mobile-menu" id="mobile-menu" aria-label="Мобильная навигация">
     <a href="#product">Продукт</a>
     <a href="#how">Как работает</a>
+    <a href="#band">Браслет</a>
+    <a href="#app">Приложение</a>
     <a href="#pilot">Пилот</a>
     <a href="#trust">Безопасность</a>
     <a href="#faq">Вопросы</a>
     <a class="btn btn-primary btn-lg" href="/app">Открыть кабинет</a>
     <a class="btn btn-ghost btn-lg" href="#contact">Запросить пилот</a>
   </nav>
+  <div class="read-progress" aria-hidden="true"><i></i></div>
 </header>
 
 <main id="main">
@@ -104,8 +110,8 @@
 <section class="hero" aria-labelledby="hero-title">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <span class="tag-mono">Для спортивных врачей и тренеров</span>
-      <h1 id="hero-title">Цифровой двойник каждого спортсмена.</h1>
+      <a class="hero-pill" href="#pilot"><span class="hp-dot" aria-hidden="true"></span><span>Пилот 2026 · открыт набор команд</span><svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <h1 id="hero-title" class="hero-h1"><span class="w" style="--i:0">Цифровой</span> <span class="w" style="--i:1">двойник</span> <mark class="marker"><span class="w" style="--i:2">каждого</span> <span class="w" style="--i:3">спортсмена.</span></mark></h1>
       <p class="lead">AI Sports объединяет анализы, данные носимых устройств, сон, нагрузку и самочувствие в персональный профиль спортсмена и каждое утро показывает врачу и тренеру, кому нужна помощь.</p>
       <div class="hero-cta">
         <a class="btn btn-primary btn-lg" href="/app">Открыть кабинет <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
@@ -126,8 +132,8 @@
         <div class="bs-ring" aria-hidden="true">
           <div class="bs-chip" style="--a:-62deg"><i class="hr"><svg class="icon-sm"><use href="#i-heart"/></svg></i><b data-live="hr">61</b><span>уд/мин</span></div>
           <div class="bs-chip" style="--a:18deg"><i><svg class="icon-sm"><use href="#i-activity"/></svg></i><b data-live="hrv">64</b><span>HRV, мс</span></div>
-          <div class="bs-chip" style="--a:104deg"><i><svg class="icon-sm"><use href="#i-sleep"/></svg></i><b data-live="spo2">98</b><span>SpO₂, %</span></div>
-          <div class="bs-chip" style="--a:196deg"><i><svg class="icon-sm"><use href="#i-flask"/></svg></i><b data-live="temp">36,4</b><span>°C кожи</span></div>
+          <div class="bs-chip" style="--a:104deg"><i><svg class="icon-sm"><use href="#i-drop"/></svg></i><b data-live="spo2">98</b><span>SpO₂, %</span></div>
+          <div class="bs-chip" style="--a:196deg"><i><svg class="icon-sm"><use href="#i-temp"/></svg></i><b data-live="temp">36,4</b><span>°C кожи</span></div>
           <div class="bs-chip" style="--a:278deg"><i><svg class="icon-sm"><use href="#i-sleep"/></svg></i><b data-live="sleep">7:42</b><span>сон</span></div>
         </div>
       </div>
@@ -136,10 +142,10 @@
   </div>
 </section>
 
-<div class="wrap">
-  <div class="integrations" aria-label="Источники данных">
-    <span>Объединяет данные</span><b>Garmin</b><b>Apple Health</b><b>Polar</b><b>Oura</b><b>Whoop</b><b>Лаборатории</b><b>Браслет AI Sports</b>
-  </div>
+<div class="ribbons">
+  <p class="sr-only">Объединяет данные: Garmin, Apple Health, Polar, Oura, Whoop, лаборатории, браслет AI Sports и утренний чек-ин. Учитывает пульс покоя, HRV, SpO₂, сон, температуру кожи, нагрузку, анализы и настроение.</p>
+  <div class="ribbon r1" aria-hidden="true"><div class="track"><span>Garmin</span><i></i><span>Apple Health</span><i></i><span>Polar</span><i></i><span>Oura</span><i></i><span>Whoop</span><i></i><span>Лаборатории</span><i></i><span>Браслет AI Sports</span><i></i><span>Чек-ин с телефона</span><i></i><span>Garmin</span><i></i><span>Apple Health</span><i></i><span>Polar</span><i></i><span>Oura</span><i></i><span>Whoop</span><i></i><span>Лаборатории</span><i></i><span>Браслет AI Sports</span><i></i><span>Чек-ин с телефона</span><i></i><span>Garmin</span><i></i><span>Apple Health</span><i></i><span>Polar</span><i></i><span>Oura</span><i></i><span>Whoop</span><i></i><span>Лаборатории</span><i></i><span>Браслет AI Sports</span><i></i><span>Чек-ин с телефона</span><i></i><span>Garmin</span><i></i><span>Apple Health</span><i></i><span>Polar</span><i></i><span>Oura</span><i></i><span>Whoop</span><i></i><span>Лаборатории</span><i></i><span>Браслет AI Sports</span><i></i><span>Чек-ин с телефона</span><i></i></div></div>
+  <div class="ribbon r2" aria-hidden="true"><div class="track"><span>Пульс покоя</span><i></i><span>HRV</span><i></i><span>SpO₂</span><i></i><span>Сон</span><i></i><span>Температура кожи</span><i></i><span>Нагрузка sRPE</span><i></i><span>Ферритин</span><i></i><span>Кортизол</span><i></i><span>Настроение</span><i></i><span>Пульс покоя</span><i></i><span>HRV</span><i></i><span>SpO₂</span><i></i><span>Сон</span><i></i><span>Температура кожи</span><i></i><span>Нагрузка sRPE</span><i></i><span>Ферритин</span><i></i><span>Кортизол</span><i></i><span>Настроение</span><i></i><span>Пульс покоя</span><i></i><span>HRV</span><i></i><span>SpO₂</span><i></i><span>Сон</span><i></i><span>Температура кожи</span><i></i><span>Нагрузка sRPE</span><i></i><span>Ферритин</span><i></i><span>Кортизол</span><i></i><span>Настроение</span><i></i><span>Пульс покоя</span><i></i><span>HRV</span><i></i><span>SpO₂</span><i></i><span>Сон</span><i></i><span>Температура кожи</span><i></i><span>Нагрузка sRPE</span><i></i><span>Ферритин</span><i></i><span>Кортизол</span><i></i><span>Настроение</span><i></i></div></div>
 </div>
 
 <!-- PROBLEM -->
@@ -149,22 +155,22 @@
       <span class="tag-mono rose">Проблема</span>
       <h2 class="title-l" id="problem-title">Спорт до сих пор держится на интуиции.</h2>
     </div>
-    <div class="problems">
+    <div class="problems" data-stagger>
       <div class="problem">
         <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="26" y="30" width="68" height="34" rx="12" transform="rotate(-18 60 47)" class="fill-soft ln"/><g transform="rotate(-18 60 47)"><rect x="48" y="30" width="24" height="34" class="fill-sun ln"/><circle cx="55" cy="41" r="1.6" class="dk"/><circle cx="65" cy="41" r="1.6" class="dk"/><circle cx="55" cy="53" r="1.6" class="dk"/><circle cx="65" cy="53" r="1.6" class="dk"/></g><circle cx="94" cy="22" r="10" class="dot-dark"/><path d="M94 17v6M94 26v.5" class="ln-w"/></svg>
-        <b>35–50%</b>
+        <b><span data-count="35">35</span>–<span data-count="50">50</span>%</b>
         <h3>Травмы</h3>
         <p>спортсменов получают травму за сезон — чаще после недель незамеченной перегрузки.</p>
       </div>
       <div class="problem">
         <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="22" y="18" width="70" height="58" rx="8" class="fill-soft ln"/><path d="M22 34h70" class="ln"/><path d="M38 12v12M76 12v12" class="ln"/><g class="ln"><path d="M32 44l8 8M40 44l-8 8M50 44l8 8M58 44l-8 8M68 44l8 8M76 44l-8 8M32 60l8 8M40 60l-8 8"/></g><rect x="66" y="60" width="12" height="10" rx="2" class="fill-sun ln"/><circle cx="98" cy="20" r="10" class="dot-dark"/><path d="M98 15v5l3 2" class="ln-w"/></svg>
-        <b>15–30%</b>
+        <b><span data-count="15">15</span>–<span data-count="30">30</span>%</b>
         <h3>Потерянное время</h3>
         <p>подготовки теряется на травмы, болезни и перетренированность.</p>
       </div>
       <div class="problem">
         <svg viewBox="0 0 120 90" class="ill" aria-hidden="true"><rect x="20" y="30" width="72" height="36" rx="8" class="fill-soft ln"/><rect x="92" y="41" width="7" height="14" rx="2" class="ln"/><rect x="26" y="36" width="16" height="24" rx="3" class="fill-rose ln"/><path d="M58 38l-8 12h10l-8 12" class="ln bold"/><circle cx="100" cy="20" r="10" class="dot-dark"/><path d="M96 20h8" class="ln-w"/></svg>
-        <b>до 20%</b>
+        <b>до <span data-count="20">20</span>%</b>
         <h3>Выгорание</h3>
         <p>спортсменов выгорают, а восстановление у всех одинаковое.</p>
       </div>
@@ -173,21 +179,29 @@
 </section>
 
 <!-- BAND -->
-<section class="section" id="band" aria-labelledby="band-title">
-  <div class="wrap band-sec">
-    <div class="band-copy">
-      <span class="tag-mono">Браслет AI Sports</span>
+<section class="band-dark" id="band" aria-labelledby="band-title">
+  <div class="bd-bg" aria-hidden="true"><i class="g1"></i><i class="g2"></i></div>
+  <div class="wrap">
+    <div class="center-head bd-head" data-reveal>
+      <span class="tag-mono on-dark">Браслет AI Sports</span>
       <h2 class="title-l" id="band-title">Один браслет снимает все измерения. Ночью.</h2>
       <p class="lead">Спортсмен надевает его и забывает. Утром данные уже в кабинете врача.</p>
-      <ul class="band-specs">
-        <li><b>~8 дней</b><span>непрерывного мониторинга</span></li>
-        <li><b>5 ATM</b><span>можно плавать</span></li>
-        <li><b>25 г</b><span>без экрана, ничего не отвлекает</span></li>
+    </div>
+    <div class="bd-stage">
+      <ul class="bd-specs bd-l" data-stagger>
+        <li><b>~<span data-count="8">8</span> дней</b><span>непрерывного мониторинга</span></li>
+        <li><b><span data-count="5">5</span> ATM</b><span>можно плавать и принимать душ</span></li>
+      </ul>
+      <div class="bd-device" data-parallax>
+        <div class="bd-rot">
+        <img class="bd-img" src="band-v500.webp" srcset="band-v500-s.webp 520w, band-v500.webp 1000w" sizes="(max-width: 700px) 280px, 440px" width="1000" height="1000" alt="Браслет AI Sports: чёрный тканевый ремешок, металлический датчик без экрана" loading="lazy" decoding="async">
+        <span class="bd-sensor" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <ul class="bd-specs bd-r" data-stagger>
+        <li><b><span data-count="25">25</span> г</b><span>без экрана — ничего не отвлекает</span></li>
         <li><b>BLE</b><span>в телефон, затем зашифрованно в кабинет</span></li>
       </ul>
-    </div>
-    <div class="band-photo">
-      <img src="band-v500-s.webp" width="520" height="520" alt="Браслет AI Sports: чёрный тканевый ремешок, металлический датчик без экрана" loading="lazy" decoding="async">
     </div>
   </div>
 </section>
@@ -199,11 +213,11 @@
       <span class="tag-mono">Что измеряет</span>
       <h2 class="title-l" id="measures-title">Шесть показателей, из которых складывается готовность.</h2>
     </div>
-    <ul class="measures">
+    <ul class="measures" data-stagger>
       <li><i><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg></i><b>Пульс</b><span>покоя и ночью</span></li>
       <li><i><svg class="icon" aria-hidden="true"><use href="#i-activity"/></svg></i><b>HRV</b><span>восстановление</span></li>
-      <li><i><svg class="icon" aria-hidden="true"><use href="#i-sleep"/></svg></i><b>SpO₂</b><span>кислород в крови</span></li>
-      <li><i><svg class="icon" aria-hidden="true"><use href="#i-flask"/></svg></i><b>Температура</b><span>отклонение от нормы</span></li>
+      <li><i><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg></i><b>SpO₂</b><span>кислород в крови</span></li>
+      <li><i><svg class="icon" aria-hidden="true"><use href="#i-temp"/></svg></i><b>Температура</b><span>отклонение от нормы</span></li>
       <li><i><svg class="icon" aria-hidden="true"><use href="#i-sleep"/></svg></i><b>Сон</b><span>длительность, пробуждения</span></li>
       <li><i><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg></i><b>Напоминание</b><span>вибрация к чек-ину</span></li>
     </ul>
@@ -218,6 +232,9 @@
       <span class="tag-mono">Один кабинет</span>
       <h2 class="title-l" id="product-title">Вся команда на одном экране.</h2>
     </div>
+    <div class="shot-stage" data-tilt>
+    <div class="shot-toast t1" aria-hidden="true"><i class="ok"><svg class="icon-sm"><use href="#i-check"/></svg></i><span><b>Чек-ин получен</b>Нуржан Касенов · 07:12</span></div>
+    <div class="shot-toast t2" aria-hidden="true"><i class="warn"><svg class="icon-sm"><use href="#i-activity"/></svg></i><span><b>HRV −15% к норме</b>Санжар Утепов · 3 дня подряд</span></div>
     <div class="shot" role="img" aria-label="Экран кабинета: список спортсменов с готовностью, сном, риском травмы и статусом">
       <div class="shot-side" aria-hidden="true">
         <span class="s-brand"><svg viewBox="0 0 34 34"><rect width="34" height="34" rx="10" fill="url(#g-brand)"/><path d="M6 18h5l2.5-6 4 11 3-8 1.5 3H28" fill="none" stroke="#2a1606" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>AI Sports</span>
@@ -247,6 +264,7 @@
         <div class="sm-pop"><b>Ранний сигнал</b><span>HRV −15% к личной норме три дня подряд, пульс покоя +5</span><em>Открыть разбор</em></div>
       </div>
     </div>
+    </div>
 
   </div>
 </section>
@@ -258,7 +276,7 @@
       <span class="tag-mono">Что внутри</span>
       <h2 class="title-l" id="features-title">Восемь разделов кабинета.</h2>
     </div>
-    <div class="features">
+    <div class="features" data-stagger>
       <a class="feat" href="/app#/analytics"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><h3>Ранние сигналы</h3><p>Отклонения от личной нормы — до травмы.</p></a>
       <a class="feat" href="/app#/twin"><svg class="icon" aria-hidden="true"><use href="#i-twin"/></svg><h3>Цифровой двойник</h3><p>Профиль спортсмена и прогноз на завтра.</p></a>
       <a class="feat" href="/app#/medical"><svg class="icon" aria-hidden="true"><use href="#i-flask"/></svg><h3>Медицинские данные</h3><p>Анализы с референсами и динамикой.</p></a>
@@ -281,7 +299,7 @@
       </div>
       <a class="btn btn-primary" href="/app">Посмотреть в кабинете <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
-    <div class="steps">
+    <div class="steps" data-stagger>
 
       <article class="stp">
         <div class="stp-ui ui-checkin" aria-hidden="true">
@@ -357,6 +375,24 @@
   </div>
 </section>
 
+<!-- PROOF -->
+<section class="proof" aria-labelledby="proof-title">
+  <svg class="proof-ecg" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true"><path d="M0 96 H300 L330 96 L350 40 L374 140 L396 70 L414 96 H700 L730 96 L750 40 L774 140 L796 70 L814 96 H1100 L1130 96 L1150 40 L1174 140 L1196 70 L1214 96 H1440"/></svg>
+  <div class="wrap proof-in">
+    <div class="proof-head" data-reveal>
+      <span class="tag-mono">Не обещания, а данные</span>
+      <h2 class="title-l" id="proof-title">Модели обучены на реальных наблюдениях.</h2>
+      <a class="link-arrow" href="/app#/models">Как работает ИИ <svg class="icon-sm" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+    <ul class="proof-stats" data-stagger>
+      <li><b><span data-count="42766">42 766</span></b><span>дней наблюдений в обучающей выборке</span></li>
+      <li><b><span data-count="74">74</span></b><span>спортсмена в открытом научном датасете</span></li>
+      <li><b>×<span data-count="1.8" data-dec="1">1,8</span></b><span>чаще травмы у верхних 10% по прогнозу риска</span></li>
+      <li><b><span data-count="256">256</span> бит</b><span>шифрование ответов спортсменов AES-GCM</span></li>
+    </ul>
+  </div>
+</section>
+
 <!-- DATA -->
 <section class="band" id="data" aria-labelledby="data-title">
   <div class="wrap">
@@ -364,7 +400,7 @@
       <span class="tag-mono">Данные</span>
       <h2 class="title-l" id="data-title">Пять источников — один профиль.</h2>
     </div>
-    <ul class="data-tags">
+    <ul class="data-tags" data-stagger>
       <li><span class="dt-h"><svg class="icon-sm" aria-hidden="true"><use href="#i-flask"/></svg>Лаборатория</span><span class="dt-t">Кровь</span><span class="dt-t">Ферритин</span><span class="dt-t">Кортизол</span><span class="dt-t">CRP</span></li>
       <li><span class="dt-h"><svg class="icon-sm" aria-hidden="true"><use href="#i-heart"/></svg>Браслет</span><span class="dt-t">Пульс</span><span class="dt-t">HRV</span><span class="dt-t">SpO₂</span><span class="dt-t">Температура</span></li>
       <li><span class="dt-h"><svg class="icon-sm" aria-hidden="true"><use href="#i-sleep"/></svg>Сон</span><span class="dt-t">Длительность</span><span class="dt-t">Глубокий</span><span class="dt-t">Пробуждения</span></li>
@@ -399,6 +435,59 @@
   </div>
 </section>
 
+<!-- APP -->
+<section class="section" id="app" aria-labelledby="app-title">
+  <div class="wrap">
+    <div class="app-banner">
+      <div class="ab-bg" aria-hidden="true"><i class="g1"></i><i class="g2"></i></div>
+      <div class="ab-copy" data-reveal>
+        <span class="tag-mono on-dark">Приложение для iPhone</span>
+        <h2 class="title-l" id="app-title">Чек-ин, браслет и кабинет — в кармане.</h2>
+        <p>Спортсмен отвечает за минуту и подключает браслет по Bluetooth. Врач принимает ответы и открывает кабинет прямо в приложении — даже без сети.</p>
+        <ul class="ab-list">
+          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-lock"/></svg>Ответ шифруется на телефоне</li>
+          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-heart"/></svg>Пульс и HRV с браслета, сон и SpO₂ из Apple Health</li>
+          <li><svg class="icon-sm" aria-hidden="true"><use href="#i-users"/></svg>Спортсмен и специалист в одном приложении</li>
+        </ul>
+        <div class="ab-btns">
+          <a class="btn btn-peach btn-lg" href="#contact">Попасть в тестирование <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-on-dark btn-lg" href="/checkin">Чек-ин в браузере</a>
+        </div>
+        <p class="ab-note">Сейчас в закрытом тестировании. Android — следующим.</p>
+      </div>
+      <div class="ab-phone" aria-hidden="true">
+        <div class="ab-float">
+          <div class="device device-iphone-14-pro">
+            <div class="device-frame"><div class="device-screen"><div class="ios app-today">
+              <div class="ios-status"><span>9:41</span><span class="ios-icons"><i class="ios-cell"></i><i class="ios-wifi"></i><i class="ios-batt"></i></span></div>
+              <div class="at-body">
+                <div class="at-title">Сегодня</div>
+                <div class="at-hello">Доброе утро, Нуржан</div>
+                <div class="at-card at-ok"><i><svg><use href="#i-check"/></svg></i><span><b>Чек-ин отправлен</b><em>Готовность 8/10 · 07:12</em></span></div>
+                <div class="at-card at-night">
+                  <div class="at-row"><b>Прошлая ночь</b><em><i class="dot"></i>на связи</em></div>
+                  <div class="at-grid">
+                    <span><em>Пульс</em><b>51</b><small>уд/мин</small></span>
+                    <span><em>HRV</em><b>68</b><small>мс</small></span>
+                    <span><em>SpO₂</em><b>98</b><small>%</small></span>
+                    <span><em>Сон</em><b>7,6</b><small>ч</small></span>
+                    <span><em>Темп.</em><b>36,4</b><small>°C</small></span>
+                    <span><em>Заряд</em><b>82</b><small>%</small></span>
+                  </div>
+                </div>
+              </div>
+              <div class="at-tabs"><span class="on"><svg><use href="#i-spark"/></svg>Сегодня</span><span><svg><use href="#i-check"/></svg>Чек-ин</span><span><svg><use href="#i-watch"/></svg>Браслет</span><span><svg><use href="#i-file"/></svg>История</span></div>
+            </div></div></div>
+            <div class="device-stripe"></div><div class="device-header"></div><div class="device-sensors"></div><div class="device-btns"></div><div class="device-power"></div>
+          </div>
+        </div>
+        <div class="ab-badge b1"><i><svg class="icon-sm"><use href="#i-lock"/></svg></i>AES-256-GCM</div>
+        <div class="ab-badge b2"><i><svg class="icon-sm"><use href="#i-heart"/></svg></i>51 уд/мин</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- PILOT -->
 <section class="band" id="pilot" aria-labelledby="pilot-title">
   <div class="wrap">
@@ -415,7 +504,7 @@
           <li><svg class="icon-sm" aria-hidden="true"><use href="#i-check"/></svg>Аналитика и отчёты для врача и тренера</li>
         </ul>
       </div>
-      <figure class="targets" style="margin:0" aria-labelledby="t-title">
+      <figure class="targets" style="margin:0" aria-labelledby="t-title" data-reveal>
         <div class="targets-head"><b id="t-title">Что ожидаем от пилота</b><span>ориентиры по аналогичным программам</span></div>
         <ul class="t-bars">
           <li><div class="t-row"><span>Травматизм</span><span>−20–30%</span></div><div class="t-track"><span class="t-range" style="left:57.1%;width:28.6%"></span><span class="t-fill" style="--w:71.4%"></span></div></li>
@@ -462,7 +551,7 @@
       <span class="tag-mono">Безопасность</span>
       <h2 class="title-l" id="trust-title">Как защищены данные</h2>
     </div>
-    <div class="principles">
+    <div class="principles" data-stagger>
       <div class="pr"><span class="pi"><svg class="icon-sm" aria-hidden="true"><use href="#i-pin"/></svg></span><h3>Данные не покидают Казахстан</h3><p>Хранение и обработка — на территории РК.</p></div>
       <div class="pr"><span class="pi"><svg class="icon-sm" aria-hidden="true"><use href="#i-stetho"/></svg></span><h3>Человек в контуре</h3><p>Выводы утверждает врач или профильный специалист.</p></div>
       <div class="pr"><span class="pi"><svg class="icon-sm" aria-hidden="true"><use href="#i-lock"/></svg></span><h3>Минимум доступа</h3><p>Каждая роль видит только свою категорию данных.</p></div>
@@ -500,6 +589,7 @@
 <section class="section" id="contact" aria-labelledby="contact-title">
   <div class="wrap">
     <div class="cta">
+      <div class="cta-glow" aria-hidden="true"></div>
       <div class="cta-copy">
         <span class="tag-mono dark">Начать</span>
         <h2 id="contact-title">Готовы запустить пилот с вашей командой?</h2>

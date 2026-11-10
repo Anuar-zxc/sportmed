@@ -42,15 +42,119 @@
     window.addEventListener('resize', function () { if (window.innerWidth > 1000) setMenu(false); });
   }
 
-  /* ---------- Reveal ---------- */
-  var revealEls = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window && !reduceMotion) {
+  /* ---------- Появление при прокрутке, счётчики, наклон, параллакс ----------
+     Классы-«заготовки» получают только элементы ниже первого экрана: что видно сразу — не мигает.
+     Без JS и при prefers-reduced-motion всё в финальном состоянии. */
+  var vh0 = window.innerHeight || 800;
+  function belowFold(el) { var r = el.getBoundingClientRect(); return r.top > vh0 * 0.92; }
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  var motion = !reduceMotion && 'IntersectionObserver' in window && !!document.body.classList.contains('landing');
+  var sweepPassed = function () {};
+
+  var fmtCache = {};
+  function fmt(v, dec) {
+    var k = 'd' + dec;
+    if (!fmtCache[k]) { try { fmtCache[k] = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: dec, maximumFractionDigits: dec }); } catch (e) { fmtCache[k] = { format: function (x) { return x.toFixed(dec).replace('.', ','); } }; } }
+    return fmtCache[k].format(v);
+  }
+  function countUp(el) {
+    var to = parseFloat(el.getAttribute('data-count')), dec = +(el.getAttribute('data-dec') || 0);
+    if (!(to >= 0)) return;
+    var t0 = null, dur = to > 1000 ? 1800 : 1300;
+    function step(t) {
+      if (t0 == null) t0 = t;
+      var p = clamp((t - t0) / dur, 0, 1), e = 1 - Math.pow(1 - p, 4);
+      el.textContent = fmt(to * e, dec);
+      if (p < 1) requestAnimationFrame(step); else el.textContent = fmt(to, dec);
+    }
+    requestAnimationFrame(step);
+  }
+
+  if (motion) {
+    var armed = [];
+    function arm(el, d) { if (!belowFold(el)) return; el.classList.add('rv'); if (d) el.style.setProperty('--d', d); armed.push(el); }
+    document.querySelectorAll('.center-head, .section-head, .how-head, [data-reveal], .shot-stage, .ab-phone, .roles, .pilot > div:first-child, .compare, .faq-list, .cta').forEach(function (el) { arm(el, 0); });
+    document.querySelectorAll('[data-stagger]').forEach(function (g) {
+      Array.prototype.forEach.call(g.children, function (c, i) { arm(c, Math.min(i, 7)); });
+    });
+    var proof = document.querySelector('.proof');
+    if (proof && belowFold(proof)) { proof.classList.add('rv-armed'); armed.push(proof); }
+    // числа: стартуют с нуля, только если их ещё не видно
+    var counters = Array.prototype.filter.call(document.querySelectorAll('[data-count]'), belowFold);
+    counters.forEach(function (el) { el.textContent = fmt(0, +(el.getAttribute('data-dec') || 0)); });
+
+    var pending = armed.concat(counters);
+    function reveal(el) {
+      var i = pending.indexOf(el);
+      if (i < 0) return;
+      pending.splice(i, 1);
+      io.unobserve(el);
+      if (el.hasAttribute('data-count')) { countUp(el); return; }
+      el.classList.add('in');
+      // после появления убираем «заготовку», чтобы hover и другие переходы работали со своими скоростями
+      var d = parseFloat(el.style.getPropertyValue('--d')) || 0;
+      setTimeout(function () { el.classList.remove('rv'); el.style.removeProperty('--d'); }, 1500 + d * 80);
+    }
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
-    }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
-    revealEls.forEach(function (el) { io.observe(el); });
-  } else {
-    revealEls.forEach(function (el) { el.classList.add('in'); });
+      entries.forEach(function (en) { if (en.isIntersecting) reveal(en.target); });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    pending.forEach(function (el) { io.observe(el); });
+    // при резкой прокрутке элемент может проскочить экран за один кадр — наблюдатель такого не видит;
+    // всё, что уже выше нижней кромки экрана, проявляем принудительно
+    var lastSweep = 0;
+    sweepPassed = function () {
+      var now = Date.now();
+      if (!pending.length || now - lastSweep < 120) return;
+      lastSweep = now;
+      var lim = window.innerHeight * 0.92, passed = [];
+      for (var k = 0; k < pending.length; k++) if (pending[k].getBoundingClientRect().top < lim) passed.push(pending[k]);
+      passed.forEach(reveal);
+    };
+  }
+
+  /* ---------- Прокрутка: прогресс, наклон скриншота, поворот браслета, параллакс hero ---------- */
+  var progressBar = document.querySelector('.read-progress i');
+  var tiltEl = document.querySelector('[data-tilt]');
+  var paraEl = document.querySelector('[data-parallax]');
+  var heroStage = document.querySelector('.band-scene .bs-stage');
+  var ticking = false;
+  function frame() {
+    ticking = false;
+    var vh = window.innerHeight, st = window.scrollY || window.pageYOffset;
+    var max = document.documentElement.scrollHeight - vh;
+    if (progressBar) progressBar.style.transform = 'scaleX(' + (max > 0 ? clamp(st / max, 0, 1) : 0).toFixed(4) + ')';
+    if (!motion) return;
+    sweepPassed();
+    var r, p;
+    if (tiltEl) { r = tiltEl.getBoundingClientRect(); if (r.top < vh && r.bottom > 0) { p = clamp((vh - r.top) / (vh * 0.75), 0, 1); tiltEl.style.setProperty('--tp', p.toFixed(3)); } }
+    if (paraEl) { r = paraEl.getBoundingClientRect(); if (r.top < vh && r.bottom > 0) { p = clamp((vh - r.top) / (vh + r.height), 0, 1); paraEl.style.setProperty('--sp', p.toFixed(3)); } }
+    if (heroStage && st < vh * 1.2) heroStage.style.transform = 'translate3d(0,' + (st * 0.14).toFixed(1) + 'px,0)';
+  }
+  function requestFrame() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+  if (progressBar || motion) {
+    if (motion && tiltEl) tiltEl.style.setProperty('--tp', belowFold(tiltEl) ? '0' : '1');
+    window.addEventListener('scroll', requestFrame, { passive: true });
+    window.addEventListener('scrollend', function () { if (motion) { setTimeout(requestFrame, 130); } }, { passive: true });
+    window.addEventListener('resize', requestFrame, { passive: true });
+    frame();
+  }
+
+  /* ---------- Подсветка карточек под курсором ---------- */
+  if (motion && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    var spotSel = '.feat, .measures li, .pr, .stp, .proof-stats li', spotEl = null, spotX = 0, spotY = 0, spotQueued = false;
+    document.addEventListener('pointermove', function (e) {
+      var t = e.target.closest ? e.target.closest(spotSel) : null;
+      if (!t) return;
+      spotEl = t; spotX = e.clientX; spotY = e.clientY;
+      if (spotQueued) return;
+      spotQueued = true;
+      requestAnimationFrame(function () {
+        spotQueued = false;
+        var r = spotEl.getBoundingClientRect();
+        spotEl.style.setProperty('--mx', (spotX - r.left).toFixed(0) + 'px');
+        spotEl.style.setProperty('--my', (spotY - r.top).toFixed(0) + 'px');
+      });
+    }, { passive: true });
   }
 
   /* ---------- Tabs (roles on landing) ---------- */

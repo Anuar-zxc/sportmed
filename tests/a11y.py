@@ -60,7 +60,8 @@ def main():
                 for mobile in (False, True):
                     if mobile and not path.startswith("/app"):
                         continue
-                    ctx = b.new_context(viewport={"width": 390, "height": 844} if mobile else {"width": 1280, "height": 900}, bypass_csp=True)
+                    # «уменьшение движения»: страница сразу в финальном состоянии, контраст проверяется у всех элементов
+                    ctx = b.new_context(viewport={"width": 390, "height": 844} if mobile else {"width": 1280, "height": 900}, bypass_csp=True, reduced_motion="reduce")
                     ctx.add_init_script(PROFILE % theme)
                     pg = ctx.new_page()
                     pg.goto(base + path)

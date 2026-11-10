@@ -41,6 +41,8 @@ def test(fn):
     return fn
 
 
+CONSENT_JS = "try{localStorage.getItem('asp_consent')||localStorage.setItem('asp_consent',JSON.stringify({v:2,necessary:true,analytics:false,ts:Date.now()}))}catch(e){}"
+
 class Page:
     """Страница с учётом ошибок: любая ошибка JS или нарушение CSP валит тест."""
 
@@ -48,7 +50,7 @@ class Page:
         opts = dict(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True) if mobile else dict(viewport={"width": 1440, "height": 960})
         self.ctx = browser.new_context(accept_downloads=True, **opts)
         # согласие на cookie заранее — баннер не перекрывает кнопки
-        self.ctx.add_init_script("try{localStorage.getItem('asp_consent')||localStorage.setItem('asp_consent',JSON.stringify({v:2,necessary:true,analytics:false,ts:Date.now()}))}catch(e){}")
+        self.ctx.add_init_script(CONSENT_JS)
         if not no_profile:  # профиль специалиста уже введён — иначе кабинет показывает экран входа
             self.ctx.add_init_script("try{var s=JSON.parse(localStorage.getItem('asp_app_v1')||'{}');if(!s.profile){s.profile={name:'Тест Тестов',role:'doctor',ts:1};s.ui=2;s.theme='light';localStorage.setItem('asp_app_v1',JSON.stringify(s))}}catch(e){}")
         self.p = self.ctx.new_page()
@@ -414,6 +416,39 @@ def roles_menu_and_report_button(b):
         pg.p.goto("about:blank")
         pg.p.goto(BASE + "/app#/" + hash_); pg.p.wait_for_load_state("domcontentloaded")
         pg.p.wait_for_function("() => document.querySelector('.nav-item[aria-current=\"page\"]')", timeout=10000); pg.p.wait_for_timeout(300)
+
+
+@test
+def landing_motion_and_banners(b):
+    """Баннеры на месте; появление, счётчики и прогресс работают; при «уменьшении движения» всё видно сразу;
+    нет горизонтальной прокрутки на планшете и ноутбуке."""
+    pg = Page(b).go("/", 900)
+    for sel in (".ribbons .r1 .track", "#band.band-dark .bd-img", ".shot-stage .shot", ".proof-stats", "#app .app-banner .device", ".cta-glow"):
+        assert pg.p.locator(sel).count() >= 1, sel
+    assert pg.p.locator(".rv").count() > 10, "элементы ниже экрана не подготовлены к появлению"
+    h = pg.p.evaluate("document.documentElement.scrollHeight")
+    for y in range(0, h, 700):
+        pg.p.evaluate("(y) => window.scrollTo(0, y)", y); pg.p.wait_for_timeout(120)
+    pg.p.wait_for_timeout(2600)
+    assert pg.p.locator(".rv:not(.in)").count() == 0, "не появилось: " + str(pg.p.evaluate("[...document.querySelectorAll('.rv:not(.in)')].map(e => e.className + ' @' + Math.round(e.getBoundingClientRect().top + scrollY))"))
+    assert pg.text(".proof-stats li:first-child b").replace("\u00a0", " ").strip() == "42 766"
+    assert "×1,8" in pg.text(".proof-stats")
+    assert pg.p.evaluate("getComputedStyle(document.querySelector('.read-progress i')).transform") != "none"
+    assert pg.p.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "горизонтальная прокрутка"
+    pg.check_clean()
+    pg.close()
+    # без движения: ничего не прячется, числа сразу финальные
+    ctx = b.new_context(viewport={"width": 1280, "height": 860}, reduced_motion="reduce")
+    ctx.add_init_script(CONSENT_JS)
+    p = ctx.new_page(); p.goto(BASE + "/"); p.wait_for_timeout(500)
+    assert p.locator(".rv").count() == 0
+    assert "42" in p.inner_text(".proof-stats li:first-child b")
+    ctx.close()
+    for w in (768, 1024):
+        ctx = b.new_context(viewport={"width": w, "height": 900}); ctx.add_init_script(CONSENT_JS)
+        p = ctx.new_page(); p.goto(BASE + "/"); p.wait_for_timeout(500)
+        assert p.evaluate("document.documentElement.scrollWidth") <= w, f"горизонтальная прокрутка на {w}px"
+        ctx.close()
 
 
 @test
