@@ -417,6 +417,46 @@ h1, h2, h3, .title-xl, .title-l, .title-m, .brand-text b { font-family: var(--fo
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+/* ---------- Наука и журнал ---------- */
+.doc-h1 { max-width: 22ch; margin-top: 12px; }
+.doc-lead { max-width: 62ch; margin: 14px 0 0; font-size: 17px; line-height: 1.6; color: var(--text-2); }
+.prose .lede { font-size: 18px; line-height: 1.65; color: var(--text); margin-bottom: 22px; }
+.prose sup.cite { font-size: 0.68em; line-height: 0; vertical-align: super; margin-left: 1px; white-space: nowrap; }
+.prose sup.cite a { color: var(--violet); font-weight: 650; text-decoration: none; padding: 0 1px; border-radius: 4px; }
+.prose sup.cite a:hover { background: var(--violet-soft); }
+.prose sup.cite a:focus-visible { outline: 2px solid var(--violet); outline-offset: 1px; }
+.prose .takeaway { margin: 18px 0 8px; padding: 14px 18px; border-left: 3px solid var(--violet-strong); border-radius: 0 14px 14px 0; background: var(--violet-soft); font-size: 15px; line-height: 1.65; color: var(--text); }
+.prose .takeaway a, .prose a { color: var(--violet); font-weight: 600; text-underline-offset: 3px; }
+.refs { margin: 0 0 20px; padding-left: 26px; font-size: 13.5px; line-height: 1.55; color: var(--text-2); }
+.refs li { margin-bottom: 9px; padding-left: 2px; scroll-margin-top: 96px; }
+.refs li:target { background: var(--violet-soft); border-radius: 8px; box-shadow: -6px 0 0 6px var(--violet-soft); }
+.refs .ref-t { color: var(--text); }
+.refs a { overflow-wrap: anywhere; font-weight: 500; }
+.doc-faq { margin: 0 0 12px; border-top: 1px solid var(--line); }
+.doc-faq details { border-bottom: 1px solid var(--line); }
+.doc-faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 15px 2px; font-size: 16px; font-weight: 600; color: var(--text); }
+.doc-faq summary::-webkit-details-marker { display: none; }
+.doc-faq summary .icon { flex: none; width: 20px; height: 20px; color: var(--muted); transition: transform 0.25s; }
+.doc-faq details[open] summary .icon { transform: rotate(45deg); color: var(--violet); }
+.doc-faq .a { padding: 0 2px 16px; font-size: 15.5px; line-height: 1.7; }
+.doc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 6px 0 18px; }
+.doc-card, .doc-wide { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: var(--r-l); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-1); color: var(--text-2); text-decoration: none !important; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.doc-card:hover, .doc-wide:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-color: var(--violet-line); }
+.doc-card:focus-visible, .doc-wide:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
+.doc-card b, .doc-wide b { font-size: 16.5px; line-height: 1.35; letter-spacing: -0.01em; color: var(--text); font-weight: 650; }
+.doc-card > span:not(.doc-card-k):not(.doc-card-go), .doc-wide > span:not(.doc-card-k):not(.doc-card-go) { font-size: 14px; line-height: 1.55; font-weight: 400; }
+.doc-card-k { align-self: flex-start; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--violet); }
+.doc-card-go { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; color: var(--violet); }
+.doc-card.alt { background: var(--violet-soft); border-color: var(--violet-line); }
+.doc-index { padding-block: 12px 88px; display: grid; gap: 14px; }
+.doc-cards.big { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 0; }
+.doc-cards.big .doc-card { padding: 24px; min-height: 260px; }
+.doc-cards.big .doc-card b { font-size: 20px; }
+.doc-wide { padding: 24px; background: var(--violet-soft); border-color: var(--violet-line); }
+.doc-wide b { font-size: 20px; }
+.doc-note { margin-top: 26px !important; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
+.header-actions .btn[aria-current="page"] { background: var(--violet-soft); border-color: var(--violet-line); color: var(--text); }
+
 @media print {
   .site-header, .site-footer, .cookie, .toc, .legal-actions, .skip-link { display: none !important; }
   body { background: #fff; color: #000; }

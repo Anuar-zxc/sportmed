@@ -174,6 +174,87 @@
     } else loadSandbox();
   }
 
+  /* ---------- Калькулятор «Сколько травмы стоят команде»: только арифметика, ничего не отправляется ---------- */
+  var roi = document.querySelector('[data-roi]');
+  if (roi) {
+    var CUR = { KZT: { sign: '₸', def: 100000, step: 5000 }, RUB: { sign: '₽', def: 20000, step: 1000 }, USD: { sign: '$', def: 200, step: 10 } };
+    var nf = function (v, d) { return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: d || 0, minimumFractionDigits: d || 0 }).format(v); };
+    var money = function (v, cur) {
+      var a = Math.abs(v), s;
+      if (a >= 1e9) s = nf(v / 1e9, v / 1e9 < 10 ? 1 : 0) + ' млрд';
+      else if (a >= 1e6) s = nf(v / 1e6, v / 1e6 < 10 ? 1 : 0) + ' млн';
+      else if (a >= 1e4) s = nf(v / 1e3, 0) + ' тыс.';
+      else s = nf(v, 0);
+      return s + ' ' + CUR[cur].sign;
+    };
+    var plural = function (n, one, few, many) { n = Math.abs(Math.round(n)) % 100; var n1 = n % 10; return n > 10 && n < 20 ? many : n1 > 1 && n1 < 5 ? few : n1 === 1 ? one : many; };
+    var $r = function (k) { return roi.querySelector('[data-r="' + k + '"]'); };
+    var el = function (id) { return document.getElementById(id); };
+    var fmtOut = {
+      'roi-players': function (v) { return String(v); },
+      'roi-rate': function (v) { return nf(v, 1); },
+      'roi-days': function (v) { return v + ' ' + plural(v, 'день', 'дня', 'дней'); },
+      'roi-season': function (v) { return v + ' ' + plural(v, 'месяц', 'месяца', 'месяцев'); },
+      'roi-cut': function (v) { return v + '%'; }
+    };
+    var shown = {}, raf = null, liveT = null;
+    var paint = function (vals, cur) {
+      $r('cost').textContent = money(vals.cost, cur);
+      $r('inj').textContent = nf(vals.inj, vals.inj < 10 ? 1 : 0);
+      $r('days').textContent = nf(vals.days, 0);
+      $r('out').textContent = nf(vals.out, 1);
+    };
+    var tween = function (to, cur) {
+      if (raf) cancelAnimationFrame(raf);
+      var from = shown.cost === undefined || reduceMotion ? to : shown, t0 = performance.now();
+      var step = function (now) {
+        var k = Math.min(1, (now - t0) / 420), e = 1 - Math.pow(1 - k, 3), cur2 = {};
+        Object.keys(to).forEach(function (key) { cur2[key] = from[key] + (to[key] - from[key]) * e; });
+        paint(cur2, cur); shown = cur2;
+        if (k < 1) raf = requestAnimationFrame(step); else { shown = to; raf = null; }
+      };
+      if (from === to) { paint(to, cur); shown = to; } else raf = requestAnimationFrame(step);
+    };
+    var calc = function () {
+      var v = {};
+      Object.keys(fmtOut).forEach(function (id) {
+        var inp = el(id), x = parseFloat(inp.value);
+        v[id] = x;
+        var out = roi.querySelector('output[for="' + id + '"]'); if (out) out.textContent = fmtOut[id](x);
+        inp.style.setProperty('--v', ((x - inp.min) / (inp.max - inp.min) * 100).toFixed(1) + '%');
+      });
+      var cur = el('roi-cur').value, perDay = Math.max(0, parseFloat(el('roi-cost').value) || 0);
+      var inj = v['roi-players'] * v['roi-rate'], days = inj * v['roi-days'];
+      var out = days / (v['roi-season'] * 30.4), cost = days * perDay, cut = v['roi-cut'] / 100;
+      tween({ cost: cost, inj: inj, days: days, out: out }, cur);
+      // состав: каждый кружок — игрок, красные — в среднем вне игры в любой день сезона
+      var sq = $r('squad'), n = v['roi-players'];
+      if (sq.children.length !== n) sq.innerHTML = new Array(n + 1).join('<i></i>');
+      Array.prototype.forEach.call(sq.children, function (c, i) {
+        var f = Math.max(0, Math.min(1, out - i));
+        c.className = f >= 0.999 ? 'out' : f > 0.05 ? 'half' : '';
+        if (f > 0.05 && f < 0.999) c.style.setProperty('--p', f.toFixed(2)); else c.style.removeProperty('--p');
+      });
+      var save = $r('save');
+      if (cut > 0) {
+        save.innerHTML = '';
+        save.appendChild(document.createTextNode('≈ '));
+        var b1 = document.createElement('b'); b1.textContent = money(cost * cut, cur); save.appendChild(b1);
+        save.appendChild(document.createTextNode(' за сезон и '));
+        var b2 = document.createElement('b'); b2.textContent = nf(days * cut, 0) + ' ' + plural(days * cut, 'игроко-день', 'игроко-дня', 'игроко-дней'); save.appendChild(b2);
+        save.appendChild(document.createTextNode(' — это ' + nf(inj * cut, inj * cut < 10 ? 1 : 0) + ' ' + plural(inj * cut < 10 ? 2 : inj * cut, 'травма', 'травмы', 'травм') + ' меньше.'));
+      } else save.textContent = 'Передвиньте ползунок, чтобы посмотреть сценарий.';
+      clearTimeout(liveT);
+      liveT = setTimeout(function () { $r('live').textContent = 'Пропуски из-за травм: ' + money(cost, cur) + ' за сезон, ' + nf(days, 0) + ' игроко-дней.'; }, 700);
+    };
+    roi.addEventListener('input', calc);
+    el('roi-cur').addEventListener('change', function () {
+      var c = CUR[this.value], inp = el('roi-cost');
+      inp.value = c.def; inp.step = c.step; calc();
+    });
+    calc();
+  }
+
   /* ---------- Tabs (roles on landing) ---------- */
   document.querySelectorAll('[role="tablist"][data-tabs]').forEach(function (list) {
     var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));

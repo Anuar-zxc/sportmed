@@ -138,6 +138,43 @@ def landing_and_legal_pages(b):
 
 
 @test
+def science_and_journal_pages(b):
+    """«Наука» и журнал: каждая ссылка на источник ведёт в список, источники пронумерованы по порядку,
+    у каждого есть DOI, разметка schema.org читается, внутренние ссылки живые."""
+    pg = Page(b)
+    pages = ["/science", "/journal", "/journal/hrv", "/journal/overtraining", "/journal/acwr"]
+    for path in pages:
+        pg.go(path, 250)
+        info = pg.p.evaluate("""() => {
+          const cites = [...document.querySelectorAll('sup.cite a')].map(a => a.getAttribute('href'));
+          const refs = [...document.querySelectorAll('ol.refs > li')];
+          const ld = [...document.querySelectorAll('script[type="application/ld+json"]')].map(s => JSON.parse(s.textContent));
+          const firstSeen = []; cites.forEach(h => { if (!firstSeen.includes(h)) firstSeen.push(h); });
+          return { cites, firstSeen, refIds: refs.map(r => '#' + r.id), doi: refs.every(r => r.querySelector('a[href^="https://doi.org/10."]')),
+                   types: ld.flatMap(x => (x['@graph'] || [x]).map(n => n['@type'])), h1: document.querySelectorAll('h1').length,
+                   links: [...document.querySelectorAll('main a[href^="/"]')].map(a => a.getAttribute('href').split('#')[0]) };
+        }""")
+        assert info["h1"] == 1, path
+        assert "BreadcrumbList" in info["types"], (path, info["types"])
+        if path != "/journal":
+            assert info["cites"], path
+            assert sorted(set(info["cites"])) == sorted(info["refIds"]), (path, "ссылки на источники и список не совпадают")
+            assert info["firstSeen"] == info["refIds"], (path, "источники пронумерованы не по порядку упоминания")
+            assert info["doi"], path
+            assert "Article" in info["types"] and "FAQPage" in info["types"], (path, info["types"])
+        for href in set(info["links"]) - {""}:
+            if href.startswith(("/app", "/gf/")):
+                continue
+            st = pg.p.request.get(BASE + href).status
+            assert st == 200, (path, href, st)
+    assert pg.p.locator("ol.refs > li").count() >= 5
+    pg.go("/science", 200)
+    assert pg.p.locator("ol.refs > li").count() == 41
+    pg.check_clean()
+    pg.close()
+
+
+@test
 def demo_cabinet_all_pages_render(b):
     pg = Page(b)
     for page in ["overview", "athletes", "twin", "medical", "analytics", "models", "recs", "reports", "about", "admin", "settings", "help"]:
@@ -488,6 +525,33 @@ def landing_sandbox(b):
     assert m.p.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "горизонтальная прокрутка на телефоне"
     m.check_clean()
     m.close()
+
+
+@test
+def landing_cost_calculator(b):
+    """Калькулятор стоимости травм: значения по умолчанию UEFA, пересчёт от ползунков и валюты, сценарий."""
+    pg = Page(b).go("/", 400)
+    pg.p.locator("#cost").scroll_into_view_if_needed(); pg.p.wait_for_timeout(700)
+    t = lambda k: pg.text('[data-r="%s"]' % k).replace("\u00a0", " ")
+    assert t("cost") == "100 млн ₸", t("cost")
+    assert t("inj") == "50" and t("days") == "1 000" and t("out") == "3,3", (t("inj"), t("days"), t("out"))
+    assert pg.p.locator('[data-r="squad"] i').count() == 25 and pg.p.locator('[data-r="squad"] i.out').count() == 3
+    assert "10 млн ₸" in t("save") and "100 игроко-дней" in t("save"), t("save")
+    pg.p.evaluate("(() => { const i = document.getElementById('roi-players'); i.value = 30; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+    pg.p.wait_for_timeout(700)
+    assert t("inj") == "60" and pg.p.locator('[data-r="squad"] i').count() == 30
+    pg.p.select_option("#roi-cur", "USD"); pg.p.wait_for_timeout(700)
+    assert pg.p.input_value("#roi-cost") == "200" and t("cost").endswith("$"), t("cost")
+    pg.p.fill("#roi-cost", "1000"); pg.p.wait_for_timeout(700)
+    assert t("cost") == "1,2 млн $", t("cost")
+    pg.p.focus("#roi-cut")
+    for _ in range(2):
+        pg.p.keyboard.press("ArrowRight")
+    pg.p.wait_for_timeout(300)
+    assert "20%" in pg.text('output[for="roi-cut"]') and "240 тыс. $" in t("save"), t("save")
+    assert pg.p.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pg.check_clean()
+    pg.close()
 
 
 @test

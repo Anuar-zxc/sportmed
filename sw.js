@@ -1,9 +1,9 @@
 /* AI Sports — service worker: работа без сети и установка на телефон/компьютер.
    Всегда сначала сеть (чтобы после релиза сразу была новая версия), кэш — только когда сети нет.
    Шрифты /gf/ неизменяемые — из кэша. Данные пользователя здесь не хранятся: они в localStorage. */
-var CACHE = 'asp-shell-v16';
+var CACHE = 'asp-shell-v17';
 var SHELL = [
-  '/', '/app', '/checkin', '/privacy', '/terms', '/cookies', '/consent', '/investors',
+  '/', '/app', '/checkin', '/privacy', '/terms', '/cookies', '/consent', '/investors', '/science', '/journal',
   '/styles.css', '/app.css', '/landing.css', '/vendor/devices-iphone.css', '/checkin.css', '/fonts.css',
   '/theme-init.js', '/main.js', '/app.js', '/data.js', '/model.js', '/models.js', '/sandbox.js',
   '/asp-crypto.js', '/checkin.js', '/vendor/qrcode.js', '/sw-register.js',

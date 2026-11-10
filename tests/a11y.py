@@ -20,7 +20,7 @@ PROFILE = ("try{localStorage.setItem('asp_consent_v1',JSON.stringify({necessary:
            "var s=JSON.parse(localStorage.getItem('asp_app_v1')||'{}');if(!s.profile){s.profile={name:'Тест Тестов',role:'doctor',ts:1};s.ui=2}"
            "s.theme='%s';localStorage.setItem('asp_app_v1',JSON.stringify(s))}catch(e){}")
 
-PAGES = ["/", "/privacy", "/terms", "/cookies", "/consent", "/checkin",
+PAGES = ["/", "/privacy", "/terms", "/cookies", "/consent", "/checkin", "/investors", "/science", "/journal", "/journal/hrv", "/journal/overtraining", "/journal/acwr",
          "/app#/overview", "/app#/athletes", "/app#/twin", "/app#/medical", "/app#/analytics", "/app#/models",
          "/app#/recs", "/app#/reports", "/app#/team", "/app#/admin", "/app#/settings"]
 TAGS = ["wcag2a", "wcag2aa", "wcag21aa", "best-practice"]
